@@ -15,6 +15,9 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
     private val rpc = Rpc(::write, ::request, ::notify)
     private var thread = ""
     private var turn = ""
+
+    /** A Stop came while the turn/start answer with the turn id waited. */
+    private var stopping = false
     private var turns = 0
     private var models = JSONArray()
     private var plan: String? = null
@@ -363,8 +366,25 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
         }
         val (id, p) = requests.remove(ask.id) ?: return@act done(ask.id)
         done(ask.id)
+        val result = result(p, answer)
+        rpc.reply(id, result)
+        // "No, and stop" stops the turn: the other cards of the turn must not stay to allow (review KM-M-28).
+        if (result.opt("decision") == "cancel") cancel(requests.toList())
+    }
+
+    /** Closes the cards of [open] and answers each request with its "cancel" answer. */
+    private suspend fun cancel(open: List<Pair<String, Pair<Any, JSONObject>>>) {
+        open.forEach { (card, _) ->
+            requests.remove(card)
+            done(card)
+        }
+        open.forEach { (_, request) -> rpc.reply(request.first, result(request.second, Answer.Dismiss)) }
+    }
+
+    /** The answer to the server request [p]. */
+    private suspend fun result(p: JSONObject, answer: Answer): JSONObject {
         val pick = answer as? Answer.Pick
-        val result = when (p.str("method")) {
+        return when (p.str("method")) {
             "item/commandExecution/requestApproval" -> {
                 val decision = pick?.let { decisions(p).getOrNull(it.choice.id.toInt()) } ?: "cancel"
                 if (pick != null && pick.choice.kind == Choice.Kind.Deny && pick.feedback.isNotBlank()) feedback(decision, pick.feedback)
@@ -391,7 +411,6 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
             }
             else -> JSONObject()
         }
-        rpc.reply(id, result)
     }
 
     /**
@@ -428,17 +447,35 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
             )
         }
         s.effort?.let { params.put("effort", it) }
+        // A Stop before the id of this turn is known waits for the id; the id of the turn before must not get it
+        // (review KM-M-28).
+        turn = ""
+        stopping = false
         try {
             turn = rpc.call("turn/start", params).optJSONObject("turn")?.str("id").orEmpty()
         } catch (e: Exception) {
             update { it.copy(busy = false) }
             throw e
         }
+        if (stopping && turn.isNotEmpty()) {
+            stopping = false
+            stopTurn()
+        }
     }
 
     override suspend fun interrupt() = act {
-        if (turn.isNotEmpty()) rpc.call("turn/interrupt", JSONObject().put("threadId", thread).put("turnId", turn))
+        // The cards close at once: a card of the turn must not get an allow while the turn stops. Their answers go after
+        // the stop, because the server drops the open requests of a stopped turn (review KM-M-28, research CX-19).
+        val open = requests.toList()
+        open.forEach { (card, _) -> done(card) }
+        try {
+            if (turn.isNotEmpty()) stopTurn() else stopping = flow.value.busy
+        } finally {
+            cancel(open)
+        }
     }
+
+    private suspend fun stopTurn() = rpc.call("turn/interrupt", JSONObject().put("threadId", thread).put("turnId", turn))
 
     override suspend fun select(setting: Setting, id: String) = act {
         update {

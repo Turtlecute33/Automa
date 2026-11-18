@@ -497,6 +497,63 @@ class ChatTest {
         }
     }
 
+    /** The first sent message with [method]; waits for it. */
+    private suspend fun sentWith(method: String): JSONObject = kotlinx.coroutines.withTimeout(5000) {
+        var found: JSONObject? = null
+        while (found == null) {
+            found = synchronized(sent) { sent.firstOrNull { it.optString("method") == method } }
+            if (found == null) kotlinx.coroutines.delay(10)
+        }
+        found
+    }
+
+    @Test
+    fun codexStopBeforeTheTurnIdStopsTheNewTurn() = runBlocking {
+        val d = CodexDriver(dir, FakeGuest()).wired()
+        for (n in 0..1) {
+            synchronized(sent) { sent.clear() }
+            val sending = launch(kotlinx.coroutines.Dispatchers.Default) { d.send("Fix it") }
+            val start = sentWith("turn/start")
+            // A Stop while turn/start waits: no id yet (first turn), or only the id of the turn before.
+            d.interrupt()
+            assertTrue(synchronized(sent) { sent.none { it.optString("method") == "turn/interrupt" } })
+            d.feed("""{"id":${start.getLong("id")},"result":{"turn":{"id":"U$n","status":"inProgress"}}}""")
+            val stop = sentWith("turn/interrupt")
+            assertEquals("U$n", stop.getJSONObject("params").getString("turnId"))
+            d.feed(
+                """{"id":${stop.getLong("id")},"result":{}}""",
+                """{"method":"turn/completed","params":{"turn":{"id":"U$n","status":"interrupted"}}}""",
+            )
+            sending.join()
+        }
+    }
+
+    @Test
+    fun codexStopAndNoAndStopCancelTheOtherCards() = runBlocking {
+        val requests = arrayOf(
+            """{"id":1,"method":"item/commandExecution/requestApproval","params":{"threadId":"T","turnId":"U","itemId":"C","command":"make","availableDecisions":["accept","decline","cancel"]}}""",
+            """{"id":2,"method":"item/fileChange/requestApproval","params":{"threadId":"T","turnId":"U","itemId":"F","reason":null}}""",
+        )
+        fun decision(id: Int) = synchronized(sent) { sent.single { it.optInt("id", -1) == id && it.has("result") } }.getJSONObject("result").getString("decision")
+        // Stop: all cards close at once, and each request gets its cancel answer.
+        val d = CodexDriver(dir, FakeGuest()).wired()
+        d.feed("""{"method":"turn/started","params":{"turn":{"id":"U"}}}""", *requests)
+        val stopping = launch(kotlinx.coroutines.Dispatchers.Default) { d.interrupt() }
+        val stop = sentWith("turn/interrupt")
+        assertTrue(d.state.value.asks.isEmpty())
+        d.feed("""{"id":${stop.getLong("id")},"result":{}}""")
+        stopping.join()
+        assertEquals(listOf("cancel", "cancel"), listOf(decision(1), decision(2)))
+        // "No, and stop" on the first card also closes and cancels the second.
+        synchronized(sent) { sent.clear() }
+        val e = CodexDriver(dir, FakeGuest()).wired()
+        e.feed(*requests)
+        val first = assertIs<Ask.Permission>(e.state.value.asks.first())
+        e.answer(first, Answer.Pick(first.choices.single { it.label == "No, and stop" }))
+        assertTrue(e.state.value.asks.isEmpty())
+        assertEquals(listOf("cancel", "cancel"), listOf(decision(1), decision(2)))
+    }
+
     @Test
     fun onlySafeIdsGoIntoACommandLine() {
         assertTrue(app.automa.chat.safe("ses_e143d4d47ffeechXHNrkuDVjGh"))
