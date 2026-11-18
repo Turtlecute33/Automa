@@ -96,4 +96,15 @@ class TerminalTest {
         val ms = (System.nanoTime() - start) / 1_000_000
         assertTrue(ms < 3000, "$ms ms")
     }
+
+    /** A session as if its process runs (no real process: nothing reads its input). */
+    private fun running() = TerminalSession("/bin/false", "/", arrayOf(), arrayOf(), 100, Client).also {
+        TerminalSession::class.java.getDeclaredField("mShellPid").apply { isAccessible = true }.setInt(it, 1)
+    }
+
+    @Test
+    fun anEmptyWriteIsIgnored() {
+        // An empty paste: output can arm it with "ESC ] 52 ; c ; BEL", and the paste removes an ESC-only clip.
+        running().write(ByteArray(0), 0, 0)
+    }
 }

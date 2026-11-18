@@ -175,7 +175,8 @@ public final class TerminalSession extends TerminalOutput {
     /** Write data to the shell process. */
     @Override
     public void write(byte[] data, int offset, int count) {
-        if (mShellPid > 0) mTerminalToProcessIOQueue.write(data, offset, count);
+        // Automa: nothing to write for an empty paste. ByteQueue throws for a length of 0, on the main thread.
+        if (mShellPid > 0 && count > 0) mTerminalToProcessIOQueue.write(data, offset, count);
     }
 
     /** Write the Unicode code point to the terminal encoded in UTF-8. */
