@@ -50,4 +50,10 @@ for path in sys.argv[1:]:
     open(path, "wb").write(data.replace(old, new))
 EOF
 
-shasum -a 256 "$OUT"/*.so
+# The files in git must be the output of this recipe: the SHA-256 of each file after the patch.
+shasum -a 256 -c - <<EOF2
+84475798e07c8174dbbfaec70a827fdb02f19ffa69a589380c13e7507fd0e731  $OUT/libandroid-shmem.so
+1da54355333cca3fb6ee10e3b82a24df24fb230c99241ce83809bf9e240609b5  $OUT/libproot-loader.so
+aad737c5b546ee7471f133be90ef20f765aa98a303522557ceed3dff76605085  $OUT/libproot.so
+160d39bc0d7ed946f22310d1d6f20addda21b02b0972dffe929fe49951543941  $OUT/libtalloc.so
+EOF2
