@@ -17,11 +17,12 @@ import java.io.FileNotFoundException
 
 /**
  * The guest home folder `/root` in the system Files app and in document pickers (DESIGN §5), so that files go in and
- * out with no other app. Only the system (MANAGE_DOCUMENTS) can bind. Paths never leave the home folder, also not
- * through a symbolic link. With the app lock on, there is no root.
+ * out with no other app. Only the system (MANAGE_DOCUMENTS) can bind. Paths never leave the home folder, and the
+ * provider does not follow symbolic links. With the app lock on, there is no root.
  */
 class HomeProvider : DocumentsProvider() {
-    private val home: File get() = requireContext().app.env.home.canonicalFile
+    /** `rootfs/root` itself: when the guest makes `/root` a link, [file] refuses all paths. */
+    private val home: File get() = File(requireContext().app.env.rootfs.canonicalFile, "root")
 
     override fun onCreate() = true
 
@@ -47,14 +48,17 @@ class HomeProvider : DocumentsProvider() {
         val cursor = MatrixCursor(projection ?: DOCUMENT_COLUMNS)
         val root = home
         file(parentId).listFiles().orEmpty()
-            .filter { inside(root, it.canonicalFile) }
+            .filter { it.canonicalPath == it.path && inside(root, it) }
             .sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
             .forEach { row(cursor, "$parentId/${it.name}", it) }
         return cursor
     }
 
-    override fun openDocument(documentId: String, mode: String, signal: CancellationSignal?): ParcelFileDescriptor =
-        ParcelFileDescriptor.open(file(documentId), ParcelFileDescriptor.parseMode(mode))
+    override fun openDocument(documentId: String, mode: String, signal: CancellationSignal?): ParcelFileDescriptor {
+        // Only regular files: the open of a FIFO that a guest program made blocks a binder thread of the app.
+        val file = file(documentId).takeIf { it.isFile } ?: throw FileNotFoundException("Not a file")
+        return ParcelFileDescriptor.open(file, ParcelFileDescriptor.parseMode(mode))
+    }
 
     override fun createDocument(parentId: String, mimeType: String, displayName: String): String {
         val parent = file(parentId)
@@ -85,7 +89,10 @@ class HomeProvider : DocumentsProvider() {
 
     /**
      * The file for [id] ("home" or "home/<relative path>"), only inside the home folder. No empty, `.` or `..`
-     * parts (review SEC-1). Nothing while the app lock is on, also for grants from before the lock (SEC-2).
+     * parts (review SEC-1). No symbolic link in the path: a link resolves at each access, so a granted folder that
+     * later becomes a link (guest code, or a `git pull` that changes `docs/` into `docs -> ../../.codex`) would give
+     * the app that has the grant another part of home. Nothing while the app lock is on, also for grants from before
+     * the lock (SEC-2).
      */
     private fun file(id: String): File {
         if (Prefs.lockOn(requireContext())) throw FileNotFoundException("Automa is locked")
@@ -94,8 +101,8 @@ class HomeProvider : DocumentsProvider() {
             throw FileNotFoundException("Unknown document")
         }
         val root = home
-        val file = File(root, id.removePrefix(ROOT).trimStart('/')).canonicalFile
-        if (!inside(root, file) || !file.exists()) throw FileNotFoundException("Unknown document")
+        val file = File(root, id.removePrefix(ROOT).trimStart('/'))
+        if (file.canonicalPath != file.path || !file.exists()) throw FileNotFoundException("Unknown document")
         return file
     }
 

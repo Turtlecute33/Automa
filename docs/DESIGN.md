@@ -124,7 +124,7 @@ The single source of truth for Automa. Findings with IDs are in `research/`.
   control characters. The agent logins use it.
 - Files: `files/HomeProvider` is a documents provider for the guest home folder `/root`, so that the
   system Files app and document pickers can open, share and import files. Only the system can bind
-  (MANAGE_DOCUMENTS). No path leaves the home folder, also not through a link. With the app lock
+  (MANAGE_DOCUMENTS). No path leaves the home folder, and it does not follow links. With the app lock
   on, it has no root.
 
 ## 6. GitHub

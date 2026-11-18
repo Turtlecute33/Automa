@@ -105,7 +105,7 @@ your own Claude or ChatGPT account. The models run at the provider; all other pa
 - No recents preview. "Stop all" needs an unlocked phone. Only the session on the screen can set
   the clipboard.
 - The tar reader refuses absolute paths, `..` and writes through a symbolic link. The documents
-  provider never leaves the home folder (no `..`, no links out of a granted folder), and it refuses
+  provider never leaves the home folder (no `..`, and it does not follow links), and it refuses
   all access while the app lock is on.
 - No backup of app data, hardened memory (`memtagMode="sync"`), HTTPS only with the system CAs.
 - On GrapheneOS, set "Native code debugging" to Allowed for Automa (App info): PRoot uses `ptrace`.
