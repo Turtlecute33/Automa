@@ -364,6 +364,9 @@ public final class TerminalSession extends TerminalOutput {
             if (msg.what == MSG_PROCESS_EXITED) {
                 int exitCode = (Integer) msg.obj;
                 cleanupResources(exitCode);
+                // Automa: the output that is still in the closed queue goes on the screen before the exit line (KM-N-17).
+                while ((bytesRead = mProcessToTerminalIOQueue.read(mReceiveBuffer, false)) > 0)
+                    mEmulator.append(mReceiveBuffer, bytesRead);
 
                 String exitDescription = "\r\n[Process completed";
                 if (exitCode > 0) {

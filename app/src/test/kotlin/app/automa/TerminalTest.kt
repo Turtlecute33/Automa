@@ -352,4 +352,19 @@ class TerminalTest {
         session.updateSize(100, 30, 10, 20)
         assertEquals(100, session.emulator.mColumns)
     }
+
+    @Test
+    fun aClosedQueueStillGivesItsBytes() {
+        // KM-N-17: read() gave -1 at once after close(), so the last output before the process exit was lost.
+        val cls = Class.forName("com.termux.terminal.ByteQueue")
+        val queue = cls.getDeclaredConstructor(Int::class.java).apply { isAccessible = true }.newInstance(16)
+        val read = cls.getDeclaredMethod("read", ByteArray::class.java, Boolean::class.java).apply { isAccessible = true }
+        cls.getDeclaredMethod("write", ByteArray::class.java, Int::class.java, Int::class.java).apply { isAccessible = true }
+            .invoke(queue, "abc".toByteArray(), 0, 3)
+        cls.getDeclaredMethod("close").apply { isAccessible = true }.invoke(queue)
+        val buffer = ByteArray(16)
+        assertEquals(3, read.invoke(queue, buffer, true))
+        assertEquals("abc", String(buffer, 0, 3))
+        assertEquals(-1, read.invoke(queue, buffer, true))
+    }
 }

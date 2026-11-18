@@ -29,7 +29,9 @@ final class ByteQueue {
                 return 0;
             }
         }
-        if (!mOpen) return -1;
+        // Automa: -1 only when the closed queue is also empty. The bytes from before close() were lost, for example the
+        // last output of a process just before its exit (KM-N-17).
+        if (mStoredBytes == 0) return -1;
 
         int totalRead = 0;
         int bufferLength = mBuffer.length;
