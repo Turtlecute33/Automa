@@ -1575,7 +1575,10 @@ public final class TerminalEmulator {
             case '@': {
                 // "CSI{n}@" - Insert ${n} space characters (ICH) - http://www.vt100.net/docs/vt510-rm/ICH.
                 mAboutToAutoWrap = false;
-                int columnsAfterCursor = mColumns - mCursorCol;
+                // Automa: only up to the right margin, and nothing outside the left and right margins, as in xterm.
+                // Upstream moved text past the right margin (KM-N-11). The same for DCH.
+                if (mCursorCol < mLeftMargin || mCursorCol >= mRightMargin) break;
+                int columnsAfterCursor = mRightMargin - mCursorCol;
                 int spacesToInsert = Math.min(getArg0(1), columnsAfterCursor);
                 int charsToMove = columnsAfterCursor - spacesToInsert;
                 mScreen.blockCopy(mCursorCol, mCursorRow, charsToMove, 1, mCursorCol + spacesToInsert, mCursorRow);
@@ -1659,6 +1662,9 @@ public final class TerminalEmulator {
                 break;
             case 'L': // "${CSI}{N}L" - insert ${N} lines (IL).
             {
+                // Automa: nothing outside the top and bottom margins, as in xterm. Upstream moved the rows above the
+                // region (KM-N-11). The same for DL.
+                if (mCursorRow < mTopMargin || mCursorRow >= mBottomMargin) break;
                 int linesAfterCursor = mBottomMargin - mCursorRow;
                 int linesToInsert = Math.min(getArg0(1), linesAfterCursor);
                 int linesToMove = linesAfterCursor - linesToInsert;
@@ -1669,6 +1675,7 @@ public final class TerminalEmulator {
             case 'M': // "${CSI}${N}M" - delete N lines (DL).
             {
                 mAboutToAutoWrap = false;
+                if (mCursorRow < mTopMargin || mCursorRow >= mBottomMargin) break; // Automa: see IL (KM-N-11).
                 int linesAfterCursor = mBottomMargin - mCursorRow;
                 int linesToDelete = Math.min(getArg0(1), linesAfterCursor);
                 int linesToMove = linesAfterCursor - linesToDelete;
@@ -1684,7 +1691,8 @@ public final class TerminalEmulator {
                 // Character attributes move with the characters. The terminal adds blank spaces with no visual character
                 // attributes at the right margin. DCH has no effect outside the scrolling margins."
                 mAboutToAutoWrap = false;
-                int cellsAfterCursor = mColumns - mCursorCol;
+                if (mCursorCol < mLeftMargin || mCursorCol >= mRightMargin) break; // Automa: see ICH (KM-N-11).
+                int cellsAfterCursor = mRightMargin - mCursorCol;
                 int cellsToDelete = Math.min(getArg0(1), cellsAfterCursor);
                 int cellsToMove = cellsAfterCursor - cellsToDelete;
                 mScreen.blockCopy(mCursorCol + cellsToDelete, mCursorRow, cellsToMove, 1, mCursorCol, mCursorRow);

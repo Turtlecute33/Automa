@@ -305,4 +305,18 @@ class TerminalTest {
         feed("\u001B[?7hb")
         assertEquals(listOf("b", ""), listOf(term.screen.getSelectedText(79, 0, 79, 0), term.screen.getSelectedText(0, 1, 79, 1)))
     }
+
+    @Test
+    fun insertAndDeleteStayInTheMargins() {
+        // KM-N-11: ICH and DCH moved text past the right margin (DECSLRM). Columns 1-5 here.
+        feed("ABCDEFGH\u001B[?69h\u001B[1;5s\u001B[@")
+        assertEquals(" ABCDFGH", term.screen.getSelectedText(0, 0, 79, 0))
+        feed("\u001B[P")
+        assertEquals("ABCD FGH", term.screen.getSelectedText(0, 0, 79, 0))
+        // IL and DL moved rows when the cursor was above the region. Rows 2-3 here; in the region they still work.
+        feed("\u001Bc0\r\n1\r\n2\r\n3\u001B[2;3r\u001B[1;1H\u001B[L\u001B[M\u001B[4;1H\u001B[L\u001B[M")
+        assertEquals("0\n1\n2\n3", term.screen.getSelectedText(0, 0, 79, 3))
+        feed("\u001B[2;1H\u001B[L")
+        assertEquals("0\n\n1\n3", term.screen.getSelectedText(0, 0, 79, 3))
+    }
 }
