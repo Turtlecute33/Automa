@@ -22,12 +22,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -77,7 +82,8 @@ fun AskCard(ask: Ask, more: Int, onAnswer: (Answer) -> Unit, modifier: Modifier 
 
 @Composable
 private fun PermissionBody(ask: Ask.Permission, onAnswer: (Answer) -> Unit) {
-    var note by remember(ask.id) { mutableStateOf("") }
+    // The note stays after a rotation (review KM-P-08A).
+    var note by rememberSaveable(ask.id) { mutableStateOf("") }
     Text(ask.title, style = MaterialTheme.typography.titleMedium)
     ask.message?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     ask.detail?.takeIf { it.isNotBlank() }?.let { CodeBlock(it, wrap = true) }
@@ -92,7 +98,8 @@ private fun PermissionBody(ask: Ask.Permission, onAnswer: (Answer) -> Unit) {
 
 @Composable
 private fun PlanBody(ask: Ask.Plan, onAnswer: (Answer) -> Unit) {
-    var note by remember(ask.id) { mutableStateOf("") }
+    // The note stays after a rotation (review KM-P-08A).
+    var note by rememberSaveable(ask.id) { mutableStateOf("") }
     if (!ask.plan.trimStart().startsWith("#")) Text("Plan", style = MaterialTheme.typography.titleMedium)
     MarkdownText(ask.plan)
     if (ask.feedback) NoteField(note, { note = it }, "What to change in the plan (optional)")
@@ -122,9 +129,22 @@ private fun Choices(choices: List<Choice>, caution: Boolean, onPick: (Choice) ->
 @Composable
 private fun QuestionsBody(ask: Ask.Questions, onAnswer: (Answer) -> Unit) {
     val haptic = LocalHapticFeedback.current
-    // For each question: the selected labels and the own answer.
-    val picks = remember(ask.id) { ask.questions.map { mutableStateListOf<String>() } }
-    val others = remember(ask.id) { ask.questions.map { mutableStateOf("") } }
+    // For each question: the selected labels and the own answer. They stay after a rotation, but a secret answer is
+    // never saved (review KM-P-08A).
+    val picks = rememberSaveable(
+        ask.id,
+        saver = listSaver<List<SnapshotStateList<String>>, ArrayList<String>>(
+            save = { it.map { labels -> ArrayList(labels) } },
+            restore = { it.map { labels -> labels.toMutableStateList() } },
+        ),
+    ) { ask.questions.map { mutableStateListOf() } }
+    val others = rememberSaveable(
+        ask.id,
+        saver = listSaver<List<MutableState<String>>, String>(
+            save = { it.mapIndexed { i, other -> if (ask.questions.getOrNull(i)?.secret == false) other.value else "" } },
+            restore = { it.map { other -> mutableStateOf(other) } },
+        ),
+    ) { ask.questions.map { mutableStateOf("") } }
     ask.questions.forEachIndexed { i, q ->
         if (q.header.isNotBlank()) {
             Text(q.header.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
