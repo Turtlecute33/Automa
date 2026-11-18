@@ -1658,7 +1658,9 @@ public final class TerminalEmulator {
             }
             break;
             case 'S': { // "${CSI}${N}S" - scroll up ${N} lines (default = 1) (SU).
-                final int linesToScroll = getArg0(1);
+                // Automa: more lines than the region has give the same screen. 4 KB of "CSI 9999 S" in DECSLRM margins
+                // took tens of seconds on the main thread.
+                final int linesToScroll = Math.min(getArg0(1), mBottomMargin - mTopMargin);
                 for (int i = 0; i < linesToScroll; i++)
                     scrollDownOneLine();
                 break;
@@ -1709,8 +1711,10 @@ public final class TerminalEmulator {
                 setCursorColRespectingOriginMode(getArg0(1) - 1);
                 break;
             case 'b': // Repeat the preceding graphic character Ps times (REP).
-                if (mLastEmittedCodePoint == -1) break;
-                final int numRepeat = getArg0(1);
+                // Automa: a combining mark is not a graphic character (each repeat scanned the row), and more than a
+                // screen of characters gives the same screen. Both made a few bytes of output freeze the main thread.
+                if (mLastEmittedCodePoint == -1 || WcWidth.width(mLastEmittedCodePoint) <= 0) break;
+                final int numRepeat = Math.min(getArg0(1), mColumns * mRows);
                 for (int i = 0; i < numRepeat; i++) emitCodePoint(mLastEmittedCodePoint);
                 break;
             case 'c': // Primary Device Attributes (http://www.vt100.net/docs/vt510-rm/DA1) if argument is missing or zero.

@@ -9,6 +9,7 @@ import com.termux.terminal.TextStyle
 import java.io.ByteArrayOutputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * The vendored terminal emulator with untrusted output: a file that a program prints (for example `cat` of a file in a
@@ -82,5 +83,17 @@ class TerminalTest {
         feed("\u001Bc\u001B[2*x\u001B[1;1;1;1;1\$r")
         val bold = { row: Int, col: Int -> TextStyle.decodeEffect(term.screen.getStyleAt(row, col)) and TextStyle.CHARACTER_ATTRIBUTE_BOLD != 0 }
         assertEquals(listOf(true, false, false), listOf(bold(0, 0), bold(0, 1), bold(1, 0)))
+    }
+
+    @Test
+    fun hugeRepeatCountsStayFast() {
+        val start = System.nanoTime()
+        // 4 KB of scroll-up inside DECSLRM margins (each scroll copies the region), and of REP.
+        feed("\u001B[?69h\u001B[2;80s" + "\u001B[9999S".repeat(585))
+        feed("\u001Bc" + "A" + "\u001B[9999b".repeat(585))
+        // A combining mark: REP has no graphic character to repeat.
+        feed("\u001Bc" + "e\u0301" + "\u001B[9999b".repeat(585))
+        val ms = (System.nanoTime() - start) / 1_000_000
+        assertTrue(ms < 3000, "$ms ms")
     }
 }
