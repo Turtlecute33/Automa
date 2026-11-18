@@ -40,10 +40,23 @@ class Prefs(private val context: Context) {
         context.contentResolver.notifyChange(DocumentsContract.buildRootsUri("${context.packageName}.home"), null)
     }
 
-    fun setLogin(name: String?) {
+    /**
+     * Sets the GitHub login [name] and its git name and e-mail address [gitUser] (the no-reply address) in one write.
+     * The setup writes [gitUser] to /etc/gitconfig (review KM-M-13).
+     */
+    fun setLogin(name: String?, gitUser: Pair<String, String>? = null) {
         _login.value = name
-        prefs.edit { putString(LOGIN, name) }
+        prefs.edit {
+            putString(LOGIN, name)
+            putString(GIT_NAME, gitUser?.first)
+            putString(GIT_EMAIL, gitUser?.second)
+        }
     }
+
+    /** The git name and e-mail address of the GitHub login, or null. */
+    fun gitUser(): Pair<String, String>? = runCatching {
+        (prefs.getString(GIT_NAME, null) ?: return null) to (prefs.getString(GIT_EMAIL, null) ?: return null)
+    }.getOrNull()
 
     fun setFontSize(sp: Int) {
         _fontSize.value = sp.coerceIn(MIN_FONT, MAX_FONT)
@@ -57,6 +70,8 @@ class Prefs(private val context: Context) {
         private const val LOCK = "lock"
         private const val LOGIN = "github_login"
         private const val FONT = "font_size"
+        private const val GIT_NAME = "git_name"
+        private const val GIT_EMAIL = "git_email"
         const val DEFAULT_FONT = 12
         const val MIN_FONT = 7
         const val MAX_FONT = 28

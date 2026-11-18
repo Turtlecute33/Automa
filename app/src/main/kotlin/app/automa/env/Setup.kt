@@ -2,6 +2,7 @@ package app.automa.env
 
 import android.system.Os
 import androidx.compose.runtime.Immutable
+import app.automa.data.Prefs
 import app.automa.term.Links
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +23,7 @@ import java.util.zip.GZIPInputStream
  * Installs and updates the guest system (DESIGN §3). Each step can run again, so a failed or stopped setup
  * continues at the next start.
  */
-class Setup(private val env: Env, private val cache: File, private val tff: Tff, private val agents: Agents) {
+class Setup(private val env: Env, private val cache: File, private val tff: Tff, private val agents: Agents, private val prefs: Prefs) {
     enum class Step(val label: String) {
         Rootfs("Download Alpine Linux"),
         Configure("Write the settings"),
@@ -275,7 +276,7 @@ class Setup(private val env: Env, private val cache: File, private val tff: Tff,
 
     private suspend fun configure() = withContext(Dispatchers.IO) {
         write("/etc/profile.d/automa.sh", PROFILE)
-        write("/etc/gitconfig", GITCONFIG)
+        write("/etc/gitconfig", gitconfig(prefs.gitUser()))
         // The user can change these files: write them only when they are missing, or still the old Automa default.
         val config = env.file(OPENCODE_CONFIG_PATH)
         if (!config.exists() || Tree.readSmall(config)?.trim() == OLD_OPENCODE_CONFIG) write(OPENCODE_CONFIG_PATH, OPENCODE_CONFIG)
@@ -365,6 +366,17 @@ class Setup(private val env: Env, private val cache: File, private val tff: Tff,
         }
 
         fun isVersion(text: String) = VERSION.matches(text)
+
+        /**
+         * /etc/gitconfig: [GITCONFIG], and the git name and e-mail address of the GitHub login (review KM-M-13). A reset
+         * deletes ~/.gitconfig, but not the login. ~/.gitconfig still overrides these values.
+         */
+        fun gitconfig(user: Pair<String, String>?): String =
+            GITCONFIG + (user?.let { (name, email) -> "[user]\n\tname = ${quote(name)}\n\temail = ${quote(email)}\n" } ?: "")
+
+        /** A git config value in quotes: `"` and `\` escaped, no control characters (the name comes from GitHub). */
+        private fun quote(value: String) =
+            "\"" + value.filterNot { it.isISOControl() }.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
         /**
          * The version and the SHA-256 of [asset] from the GitHub release data [json] (tag [prefix] + x.y.z). Null when

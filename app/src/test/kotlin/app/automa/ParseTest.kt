@@ -55,6 +55,17 @@ class ParseTest {
     }
 
     @Test
+    fun gitconfigUser() {
+        val text = Setup.gitconfig("Test \"Q\" User\\ #1\n[core]" to "1001+octo@users.noreply.github.com")
+        assertTrue(text.startsWith("# Written by Automa"))
+        assertTrue(
+            text.endsWith("[user]\n\tname = \"Test \\\"Q\\\" User\\\\ #1[core]\"\n\temail = \"1001+octo@users.noreply.github.com\"\n"),
+            text,
+        )
+        assertFalse("[user]" in Setup.gitconfig(null))
+    }
+
+    @Test
     fun setupPlan() {
         assertEquals(listOf(Step.Rootfs, Step.Configure, Step.Packages, Step.Opencode), Setup.plan(false, null))
         assertEquals(listOf(Step.Configure, Step.Packages), Setup.plan(true, Pins.OPENCODE_VERSION))

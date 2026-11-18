@@ -78,12 +78,18 @@ class GitHub(private val env: Env, private val secrets: Secrets, private val pre
             val user = env.output(gh + listOf("api", "user", "--jq", USER_FIELDS))?.lineSequence()?.lastOrNull()
                 ?: throw IOException("Cannot read the GitHub account")
             val (login, id, name) = user.split('\t').let { Triple(it[0], it.getOrElse(1) { "" }, it.getOrElse(2) { "" }) }
+            // The no-reply address keeps the private e-mail address out of commits. A failed write stops the login
+            // (review KM-M-13).
+            val git = name.ifBlank { login } to "$id+$login@users.noreply.github.com"
+            for ((key, value) in listOf("user.name" to git.first, "user.email" to git.second)) {
+                val code = env.run(listOf("git", "config", "--global", key, value))
+                if (code != 0) throw IOException("Cannot save the git $key (exit code $code)")
+            }
             withContext(NonCancellable) {
                 secrets.put(Secrets.GH_TOKEN, token)
-                prefs.setLogin(login)
-                // The no-reply address keeps the private e-mail address out of commits.
-                env.run(listOf("git", "config", "--global", "user.name", name.ifBlank { login }))
-                env.run(listOf("git", "config", "--global", "user.email", "$id+$login@users.noreply.github.com"))
+                // Also the git name and address: a reset deletes ~/.gitconfig, and the setup then writes them to
+                // /etc/gitconfig.
+                prefs.setLogin(login, git)
             }
         } finally {
             withContext(NonCancellable) { cleanUp() }

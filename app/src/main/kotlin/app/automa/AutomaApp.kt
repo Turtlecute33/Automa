@@ -34,7 +34,7 @@ class AutomaApp : Application() {
     val env by lazy { Env(this, secrets) }
     val tff by lazy { Tff(env, secrets) }
     val agents by lazy { Agents(env) }
-    val setup by lazy { Setup(env, cacheDir, tff, agents) }
+    val setup by lazy { Setup(env, cacheDir, tff, agents, prefs) }
     val links by lazy { Links(env.file(Links.DIR)) }
     val sessions by lazy { Sessions(this, env) }
     val chats by lazy { Chats(this, env, scope) }
