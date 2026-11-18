@@ -234,7 +234,10 @@ public final class TerminalBuffer {
             // Copy away old state and update new:
             TerminalRow[] oldLines = mLines;
             mLines = new TerminalRow[newTotalRows];
-            for (int i = 0; i < newTotalRows; i++)
+            // Automa: only the screen rows (as in Varco). The copy below fills them, and scrollDownOneLine() makes each
+            // new row. The other rows stay null, as after the constructor. Upstream made all rows (3000 in Automa) on
+            // the main thread at each column change (KM-Q-02).
+            for (int i = 0; i < Math.min(newRows, newTotalRows); i++)
                 mLines[i] = new TerminalRow(newColumns, currentStyle);
 
             final int oldActiveTranscriptRows = mActiveTranscriptRows;

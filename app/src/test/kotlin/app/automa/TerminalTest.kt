@@ -1,5 +1,6 @@
 package app.automa
 
+import com.termux.terminal.TerminalBuffer
 import com.termux.terminal.TerminalColors
 import com.termux.terminal.TerminalEmulator
 import com.termux.terminal.TerminalOutput
@@ -157,5 +158,21 @@ class TerminalTest {
         // "kN" (next page) is PgDn, ESC [ 6 ~; "kP" (previous page) is PgUp, ESC [ 5 ~. vim asks for them.
         feed("\u001BP+q6B4E;6B50\u001B\\")
         assertEquals("\u001BP1+r6B4E=1B5B367E\u001B\\\u001BP1+r6B50=1B5B357E\u001B\\", out.sent.toString())
+    }
+
+    @Test
+    fun aColumnChangeMakesOnlyTheScreenRows() {
+        // KM-Q-02, DS-L-65: a pinch or a rotation made all 3000 history rows at once, on the main thread.
+        val big = TerminalEmulator(out, 80, 24, 10, 20, 3000, Client)
+        val text = "a\r\nb".toByteArray()
+        big.append(text, text.size)
+        big.resize(100, 24, 10, 20)
+        val lines = TerminalBuffer::class.java.getDeclaredField("mLines").apply { isAccessible = true }.get(big.screen) as Array<*>
+        assertTrue(lines.count { it != null } <= 24)
+        // The history still works: more lines than the ring buffer holds.
+        val more = "x\r\n".repeat(3100).toByteArray()
+        big.append(more, more.size)
+        assertEquals(3000 - 24, big.screen.activeTranscriptRows)
+        assertEquals("x", big.screen.getSelectedText(0, -1, 99, -1))
     }
 }
