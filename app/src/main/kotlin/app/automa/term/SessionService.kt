@@ -102,8 +102,11 @@ class SessionService : Service() {
         private var running = false
         private var jobs = 0
 
-        /** The open terminal sessions and chats. */
-        private fun open(context: Context) = context.app.run { sessions.tabs.value.size + chats.tabs.value.size }
+        /**
+         * The terminal sessions and chats that run. A tab that ended with an error and a chat whose agent ended stay on
+         * the screen, but they must not keep the service and the wake lock.
+         */
+        private fun open(context: Context) = context.app.run { sessions.tabs.value.count { it.exit == null } + chats.running() }
 
         /** Shows the number of sessions. The first call starts the service from the UI (a foreground start). */
         fun sync(context: Context) {

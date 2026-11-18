@@ -40,13 +40,23 @@ class Chats(private val context: Context, private val env: Env, private val scop
             Agent.Opencode -> OpencodeDriver(dir, guest)
         }
         val tab = ChatTab(nextId++, "${dir.substringAfterLast('/')} · ${agent.label}", dir, agent)
-        val job = scope.launch { driver.run(env, this) }
+        val job = scope.launch {
+            try {
+                driver.run(env, this)
+            } finally {
+                // The agent ended: the service counts only the chats that run.
+                SessionService.sync(context)
+            }
+        }
         items += Item(tab, driver, job)
         publish()
         return tab.id
     }
 
     fun driver(id: Int): Driver? = items.firstOrNull { it.tab.id == id }?.driver
+
+    /** The open chats whose agent has not ended. */
+    fun running() = items.count { it.driver.state.value.ended == null }
 
     /** Stops the agent of the chat and removes the chat. */
     fun close(id: Int) {
