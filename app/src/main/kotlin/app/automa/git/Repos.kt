@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import app.automa.env.Env
 import app.automa.env.Tree
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,8 +36,17 @@ class Repos(private val env: Env) {
         }
         env.repos.mkdirs()
         var last = ""
-        val code = env.run(source.program, Env.REPOS) { last = it; line(it) }
-        refresh()
+        var code = -1
+        try {
+            code = env.run(source.program, Env.REPOS) { last = it; line(it) }
+        } finally {
+            withContext(NonCancellable + Dispatchers.IO) {
+                // A stopped or failed clone can leave a part of the folder, and a new try would then fail. The check
+                // above proved that the folder was not there before (review KM-M-12).
+                if (code != 0) runCatching { Tree.delete(File(env.repos, source.name)) }
+                refresh()
+            }
+        }
         if (code != 0) throw IOException("The clone failed: ${last.ifBlank { "exit code $code" }}")
         source.name
     }

@@ -74,8 +74,11 @@ class Env(private val context: Context, private val secrets: Secrets) {
             try {
                 runInterruptible(Dispatchers.IO) { process.waitFor() }.also { reader.join() }
             } finally {
-                // Nothing when the process has ended. Else a cancel: stop PRoot and all guest programs (research F-8).
-                if (process.isAlive) withContext(NonCancellable + Dispatchers.IO) { Procs.child(mark)?.let(Procs::kill) }
+                // Nothing when the process has ended. Else a cancel: stop PRoot and all guest programs (research F-8),
+                // and wait for them, so that the caller can delete what they wrote (review KM-M-12).
+                if (process.isAlive) {
+                    withContext(NonCancellable + Dispatchers.IO) { Procs.child(mark)?.let { Procs.stop(listOf(it), STOP_MS) } }
+                }
                 process.destroy()
             }
         }
@@ -116,6 +119,7 @@ class Env(private val context: Context, private val secrets: Secrets) {
     companion object {
         const val HOME = "/root"
         const val REPOS = "/root/repos"
+        private const val STOP_MS = 3000L
 
         /** The base guest environment. The opencode privacy flags are in /etc/profile.d/automa.sh. */
         val GUEST = mapOf(
