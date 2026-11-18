@@ -339,4 +339,17 @@ class TerminalTest {
         assertEquals("B", small.screen.getSelectedText(0, 0, 11, 0))
         assertEquals(listOf(0, 0), listOf(small.cursorRow, small.cursorCol))
     }
+
+    @Test
+    fun anEndedTabDoesNotUseTheClosedPty() {
+        // KM-N-02: after the close, the number of the PTY can belong to another file. A resize of an ended tab still
+        // used it. On the JVM the native library is not there, so a call to it fails the test.
+        val session = TerminalSession("/bin/false", "/", arrayOf(), arrayOf(), 100, Client)
+        val cls = TerminalSession::class.java
+        cls.getDeclaredField("mEmulator").apply { isAccessible = true }.set(session, TerminalEmulator(session, 80, 24, 10, 20, 100, Client))
+        cls.getDeclaredField("mTerminalFileDescriptor").apply { isAccessible = true }.setInt(session, 1234)
+        cls.getDeclaredMethod("cleanupResources", Int::class.java).apply { isAccessible = true }.invoke(session, 0)
+        session.updateSize(100, 30, 10, 20)
+        assertEquals(100, session.emulator.mColumns)
+    }
 }

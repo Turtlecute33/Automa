@@ -64,6 +64,8 @@ public final class TerminalSession extends TerminalOutput {
      * {@link JNI#createSubprocess(String, String, String[], String[], int[], int, int, int, int)}.
      */
     private int mTerminalFileDescriptor;
+    /** Automa: {@link #mTerminalFileDescriptor} as the object of the reader and writer threads, see cleanupResources(). */
+    private FileDescriptor mTerminalFileDescriptorWrapped;
 
     /** Set by the application for user identification of session, not by terminal. */
     public String mSessionName;
@@ -104,7 +106,9 @@ public final class TerminalSession extends TerminalOutput {
         if (mEmulator == null) {
             initializeEmulator(columns, rows, cellWidthPixels, cellHeightPixels);
         } else {
-            JNI.setPtyWindowSize(mTerminalFileDescriptor, rows, columns, cellWidthPixels, cellHeightPixels);
+            // Automa: not after the close (-1, see cleanupResources()): the number can belong to another file (KM-N-02).
+            if (mTerminalFileDescriptor != -1)
+                JNI.setPtyWindowSize(mTerminalFileDescriptor, rows, columns, cellWidthPixels, cellHeightPixels);
             mEmulator.resize(columns, rows, cellWidthPixels, cellHeightPixels);
         }
     }
@@ -128,6 +132,7 @@ public final class TerminalSession extends TerminalOutput {
         mShellPid = processId[0];
 
         final FileDescriptor terminalFileDescriptorWrapped = wrapFileDescriptor(mTerminalFileDescriptor, mClient);
+        mTerminalFileDescriptorWrapped = terminalFileDescriptorWrapped;
 
         new Thread("TermSessionInputReader[pid=" + mShellPid + "]") {
             @Override
@@ -254,7 +259,15 @@ public final class TerminalSession extends TerminalOutput {
         // Stop the reader and writer threads, and close the I/O streams
         mTerminalToProcessIOQueue.close();
         mProcessToTerminalIOQueue.close();
-        JNI.close(mTerminalFileDescriptor);
+        // Automa: close through the FileDescriptor object of the reader and writer threads. It then holds -1, so that
+        // their next read or write fails, and does not go to another file that got the same number. The int is -1
+        // too, for updateSize() (KM-N-02).
+        try {
+            Os.close(mTerminalFileDescriptorWrapped);
+        } catch (ErrnoException e) {
+            // Ignore: close(2) frees the number also on an error.
+        }
+        mTerminalFileDescriptor = -1;
     }
 
     @Override
