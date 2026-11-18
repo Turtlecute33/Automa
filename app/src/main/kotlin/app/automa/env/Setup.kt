@@ -157,13 +157,8 @@ class Setup(private val env: Env, private val cache: File, private val tff: Tff,
         _update.value = Update.Running("Update the packages", null)
         val code = env.run(listOf("apk", "upgrade", "-U")) { if (PTRACE in it) onBlocked() }
         if (code != 0) throw IOException("apk upgrade failed (exit code $code)")
-        _update.value = Update.Running("Look for a new opencode", null)
-        val release = newest(Download.text(Pins.OPENCODE_RELEASES, RELEASE_MAX_BYTES))
-            ?: throw IOException("Unexpected release data from GitHub")
-        if (newer(release.version, _opencode.value)) {
-            opencode(release.version, release.sha256) { _update.value = Update.Running("Download opencode ${release.version}", it) }
-        }
-        // The installed agents: each to its newest stable release (DESIGN §3).
+        // The installed agents: each to its newest stable release (DESIGN §3). Before opencode: when the release list
+        // has no 2.x release (only the first 30 releases come), the error must not also stop the agent updates.
         for ((agent, version) in agents.installed.value) {
             _update.value = Update.Running("Look for a new ${agent.label}", null)
             val newest = agents.latest(agent)
@@ -171,6 +166,12 @@ class Setup(private val env: Env, private val cache: File, private val tff: Tff,
                 _update.value = Update.Running("Update ${agent.label} to ${newest.version}", null)
                 agents.install(agent, newest)
             }
+        }
+        _update.value = Update.Running("Look for a new opencode", null)
+        val release = newest(Download.text(Pins.OPENCODE_RELEASES, RELEASE_MAX_BYTES))
+            ?: throw IOException("Unexpected release data from GitHub")
+        if (newer(release.version, _opencode.value)) {
+            opencode(release.version, release.sha256) { _update.value = Update.Running("Download opencode ${release.version}", it) }
         }
         val done = listOf("opencode ${_opencode.value}") + agents.installed.value.map { (agent, version) -> "${agent.label} $version" }
         _update.value = Update.Done("Up to date: ${done.joinToString(", ")}")
