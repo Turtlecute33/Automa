@@ -97,7 +97,8 @@ class Sessions(private val context: Context, private val env: Env) : TerminalSes
     override fun onCopyTextToClipboard(session: TerminalSession, text: String) {
         val shown = view?.takeIf { it.isAttachedToWindow && it.hasWindowFocus() }?.currentSession
         if (shown !== session) return
-        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Terminal", text))
+        // A very large selection is over the Binder limit: then no copy, and no crash on the main thread.
+        runCatching { context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Terminal", text)) }
     }
 
     override fun onPasteTextFromClipboard(session: TerminalSession?) {
