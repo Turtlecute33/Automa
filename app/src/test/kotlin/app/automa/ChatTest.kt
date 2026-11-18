@@ -420,6 +420,56 @@ class ChatTest {
     }
 
     @Test
+    fun finalTextsAndTitlesHaveALimit() {
+        val long = "x".repeat(300_000)
+        val codex = CodexDriver(dir, FakeGuest()).wired()
+        codex.feed(
+            """{"method":"item/completed","params":{"item":{"type":"agentMessage","id":"I","text":"$long"}}}""",
+            """{"method":"item/completed","params":{"item":{"type":"reasoning","id":"R","summary":["$long"]}}}""",
+            """{"method":"item/completed","params":{"item":{"type":"plan","id":"P","text":"$long"}}}""",
+            """{"method":"item/started","params":{"item":{"type":"commandExecution","id":"C","command":"$long","status":"inProgress"}}}""",
+        )
+        val claude = ClaudeDriver(dir, FakeGuest()).wired()
+        claude.feed(
+            """{"type":"system","subtype":"local_command_output","content":"$long"}""",
+            """{"type":"assistant","parent_tool_use_id":null,"message":{"id":"m","content":[{"type":"tool_use","id":"t","name":"Bash","input":{"command":"$long"}}]}}""",
+        )
+        for (entry in codex.state.value.entries + claude.state.value.entries) {
+            val text = when (entry) {
+                is Entry.Text -> entry.text
+                is Entry.Thought -> entry.text
+                is Entry.Tool -> entry.title.also { assertTrue(it.length <= 200, "title of ${entry.key}") }
+                else -> ""
+            }
+            assertTrue(text.length <= app.automa.chat.MAX_TEXT + 40, "${entry.key}: ${text.length}")
+        }
+    }
+
+    @Test
+    fun codexForgetsTheChangesOfADoneItem() {
+        val d = CodexDriver(dir, FakeGuest()).wired()
+        val item = """{"type":"fileChange","id":"F","status":"%s","changes":[{"path":"$dir/a.kt","kind":{"type":"update","move_path":null},"diff":"@@ -1 +1 @@\n-a\n+b\n"}]}"""
+        d.feed(
+            """{"method":"item/started","params":{"item":${item.format("inProgress")}}}""",
+            """{"method":"item/completed","params":{"item":${item.format("completed")}}}""",
+            """{"id":1,"method":"item/fileChange/requestApproval","params":{"threadId":"T","turnId":"U","itemId":"F","reason":null}}""",
+        )
+        assertNull(assertIs<Ask.Permission>(d.state.value.asks.single()).diff)
+    }
+
+    @Test
+    fun aFormWithManyFieldsIsReadFast() {
+        val properties = JSONObject()
+        repeat(60_000) { properties.put("f$it", JSONObject().put("type", "string")) }
+        val start = System.nanoTime()
+        val questions = app.automa.chat.Forms.questions(JSONObject().put("properties", properties))
+        val ms = (System.nanoTime() - start) / 1_000_000
+        assertEquals(60_000, questions.size)
+        // An estimate on the test JVM: a list search for each field took seconds.
+        assertTrue(ms < 1000, "took $ms ms")
+    }
+
+    @Test
     fun onlySafeIdsGoIntoACommandLine() {
         assertTrue(app.automa.chat.safe("ses_e143d4d47ffeechXHNrkuDVjGh"))
         assertTrue(app.automa.chat.safe("01a1ebbf-1e6e-7b50-8fd0-c9c51b6421b0"))

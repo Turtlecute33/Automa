@@ -230,7 +230,7 @@ class ClaudeDriver(dir: String, private val guest: Guest) : Driver(dir) {
             "api_retry" -> note("Server error, retry ${json.optInt("attempt")} of ${json.optInt("max_retries")}")
             "compact_boundary" -> note("The conversation was compacted.")
             "permission_denied" -> note("Denied: ${json.str("tool_name")}. ${json.str("message")}".trim())
-            "local_command_output" -> add(Entry.Text(key("out"), clean(json.str("content"))))
+            "local_command_output" -> add(Entry.Text(key("out"), cut(clean(json.str("content")), MAX_TEXT)))
             "informational" -> note(json.str("content"), error = json.str("level") == "warning")
             "task_notification" -> json.str("summary").takeIf { it.isNotBlank() }?.let { note(it) }
         }

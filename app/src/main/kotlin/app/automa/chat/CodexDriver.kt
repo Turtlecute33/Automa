@@ -196,13 +196,14 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
             else -> Status.Running
         }
         when (val type = item.str("type")) {
-            "agentMessage" -> item.str("text").takeIf { it.isNotEmpty() }?.let { text -> put("msg-$id") { Entry.Text("msg-$id", clean(text)) } }
+            "agentMessage" -> item.str("text").takeIf { it.isNotEmpty() }?.let { text -> put("msg-$id") { Entry.Text("msg-$id", clean(text).takeLast(MAX_TEXT)) } }
             "reasoning" -> item.optJSONArray("summary").strings().joinToString("\n\n").takeIf { it.isNotBlank() }?.let { text ->
-                put("rs-$id") { Entry.Thought("rs-$id", clean(text)) }
+                put("rs-$id") { Entry.Thought("rs-$id", clean(text).takeLast(MAX_TEXT)) }
             }
             "plan" -> item.str("text").takeIf { it.isNotEmpty() }?.let { text ->
-                plan = clean(text)
-                put("plan-$id") { Entry.Text("plan-$id", clean(text)) }
+                val shown = cut(clean(text), MAX_TEXT)
+                plan = shown
+                put("plan-$id") { Entry.Text("plan-$id", shown) }
             }
             "commandExecution" -> put("item-$id") { old ->
                 val action = item.optJSONArray("commandActions").objects().singleOrNull()
@@ -211,18 +212,19 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
                     "search" -> "Search ${clean(action.str("query"))}"
                     "listFiles" -> "List files"
                     else -> clean(item.str("command"))
-                }
+                }.take(Tools.TITLE)
                 val output = item.str("aggregatedOutput").takeIf { it.isNotEmpty() }?.let { clean(it).takeLast(OUTPUT) }
                 val code = if (item.isNull("exitCode") || !item.has("exitCode")) "" else "\nexit code ${item.optInt("exitCode")}"
                 Entry.Tool(
-                    "item-$id", Kind.Command, title, "$ " + clean(item.str("command")),
+                    "item-$id", Kind.Command, title, "$ " + cut(clean(item.str("command")), Tools.INPUT),
                     (output ?: (old as? Entry.Tool)?.output)?.let { it + code } ?: code.trim().ifEmpty { null },
                     status = status,
                 )
             }
             "fileChange" -> {
                 val list = item.optJSONArray("changes") ?: JSONArray()
-                changes[id] = list
+                // Only an open item or a waiting request needs the changes later: do not keep them all (review DS-L-13).
+                if (status == Status.Running || requests.values.any { it.second.str("itemId") == id }) changes[id] = list else changes.remove(id)
                 val paths = list.objects().joinToString(", ") { Tools.short(it.str("path"), dir) }
                 put("item-$id") { Entry.Tool("item-$id", Kind.Edit, "Edit $paths", diff = diff(list, dir), status = status) }
             }

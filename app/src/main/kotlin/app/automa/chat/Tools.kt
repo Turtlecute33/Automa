@@ -5,7 +5,10 @@ import org.json.JSONObject
 
 /** Tool cards: the kind, a short title and the input text of a tool call (research CC-11, CC-12). */
 object Tools {
-    private const val INPUT = 20_000
+    const val INPUT = 20_000
+
+    /** The longest title of a tool row. */
+    const val TITLE = 200
 
     /** [path] in the folder [dir] as a relative path; other paths stay as they are. */
     fun short(path: String, dir: String) = clean(path.removePrefix("$dir/"))
@@ -13,7 +16,7 @@ object Tools {
     fun claude(name: String, input: JSONObject, dir: String): Pair<Kind, String> {
         val path = short(input.str("file_path").ifEmpty { input.str("notebook_path") }, dir)
         return when (name) {
-            "Bash" -> Kind.Command to clean(input.str("description").ifEmpty { input.str("command") })
+            "Bash" -> Kind.Command to clean(input.str("description").ifEmpty { input.str("command") }).take(TITLE)
             "Read" -> Kind.Read to "Read $path"
             "Edit", "MultiEdit", "NotebookEdit" -> Kind.Edit to "Edit $path"
             "Write" -> Kind.Edit to "Write $path"
@@ -96,7 +99,9 @@ object Forms {
         val properties = schema.optJSONObject("properties") ?: return emptyList()
         // Android keeps the order of the schema; opencode names its fields q0, q1, … (research OC-9).
         val keys = properties.keys().asSequence().toList().sortedBy { it.removePrefix("q").substringBefore('_').toIntOrNull() ?: Int.MAX_VALUE }
-        return keys.filterNot { it.endsWith("_custom") && it.removeSuffix("_custom") in keys }.mapNotNull { key ->
+        // A set: a search in the list for each field is quadratic in the number of fields (review KM-H-12).
+        val names = keys.toHashSet()
+        return keys.filterNot { it.endsWith("_custom") && it.removeSuffix("_custom") in names }.mapNotNull { key ->
             val p = properties.optJSONObject(key) ?: return@mapNotNull null
             val multi = p.str("type") == "array"
             val choices = (if (multi) p.optJSONObject("items")?.optJSONArray("anyOf") else p.optJSONArray("oneOf")).objects()
@@ -107,7 +112,7 @@ object Forms {
                 text = clean(p.str("description").ifEmpty { p.str("title").ifEmpty { key } }),
                 options = choices.map { Question.Option(clean(it.str("const")), clean(it.str("description").ifEmpty { it.str("title") })) },
                 multi = multi,
-                other = "${key}_custom" in keys || choices.isEmpty(),
+                other = "${key}_custom" in names || choices.isEmpty(),
             )
         }
     }
