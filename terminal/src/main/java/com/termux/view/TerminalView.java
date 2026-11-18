@@ -618,6 +618,9 @@ public final class TerminalView extends View {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
                     case MotionEvent.ACTION_UP:
+                    // Automa: a cancel also ends the press, so the program gets a release. It got a press with no
+                    // release, and a drag in it stayed on (KM-N-19).
+                    case MotionEvent.ACTION_CANCEL:
                         sendMouseEventCode(event, TerminalEmulator.MOUSE_LEFT_BUTTON, event.getAction() == MotionEvent.ACTION_DOWN);
                         break;
                     case MotionEvent.ACTION_MOVE:
