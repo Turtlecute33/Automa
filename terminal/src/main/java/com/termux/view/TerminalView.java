@@ -363,7 +363,9 @@ public final class TerminalView extends View {
                 }
                 // The stock Samsung keyboard with 'Auto check spelling' enabled sends leftLength > 1.
                 KeyEvent deleteKey = new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL);
-                for (int i = 0; i < leftLength; i++) sendKeyEvent(deleteKey);
+                // Automa: at most 4096 deletes (a long command line). The IME gives the count, and a very large one
+                // (Integer.MAX_VALUE) stopped the main thread (KM-N-18).
+                for (int i = 0; i < Math.min(leftLength, 4096); i++) sendKeyEvent(deleteKey);
                 return super.deleteSurroundingText(leftLength, rightLength);
             }
 
