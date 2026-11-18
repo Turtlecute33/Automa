@@ -95,6 +95,20 @@ class MarkdownTest {
     }
 
     @Test
+    fun anUnclosedBacktickRunIsReadOnce() {
+        // Each backtick of an unclosed run counted and copied the rest of the run: 20,000 gave 200 million steps.
+        val ticks = "x" + "`".repeat(19_999)
+        val start = System.nanoTime()
+        repeat(3) { assertEquals(ticks, Markdown.inline(ticks, styles).text) }
+        val ms = (System.nanoTime() - start) / 1_000_000
+        assertTrue(ms < 100, "took $ms ms")
+        // The unclosed run "``" stays plain; the single ticks after it still make a code span.
+        val s = Markdown.inline("``a` and `b", styles)
+        assertEquals("``aandb", s.text)
+        assertEquals(1, s.spanStyles.size)
+    }
+
+    @Test
     fun aWideTableIsNotPadded() {
         // The padding makes each row as wide as the widest one: 59,999 characters became 150 million.
         val rows = listOf(listOf("x".repeat(29_000), "y")) + List(10_000) { listOf("", "z") }

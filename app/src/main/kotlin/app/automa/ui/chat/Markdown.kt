@@ -152,6 +152,11 @@ object Markdown {
                         i = end + ticks
                         continue
                     }
+                    // No closing run: the whole run is plain text (as in CommonMark). One tick at a time counted and
+                    // copied the rest of the run again for each tick, quadratic in the length.
+                    plain.append(text, i, i + ticks)
+                    i += ticks
+                    continue
                 }
                 (text.startsWith("**", i) || text.startsWith("__", i)) && opens(text, i + 2) -> {
                     val end = find(text, text.substring(i, i + 2), i + 2, limit(i))
