@@ -285,4 +285,24 @@ class TerminalTest {
         feed("\u001B[15;1H\u001B[99A")
         assertEquals(4, term.cursorRow)
     }
+
+    @Test
+    fun aSavedCursorKeepsThePendingWrap() {
+        // KM-N-10: after a character in the last column, the next one goes to the next row. Save and restore (DECSC,
+        // DECRC) lost that, so the next character wrote over the last one.
+        val small = TerminalEmulator(out, 5, 4, 10, 20, 100, Client)
+        val text = "\u001B[5GA\u001B7\u001B[1;1H\u001B8B".toByteArray()
+        small.append(text, text.size)
+        assertEquals(listOf("A", "B"), listOf(small.screen.getSelectedText(4, 0, 4, 0), small.screen.getSelectedText(0, 1, 0, 1)))
+    }
+
+    @Test
+    fun aCombiningMarkInTheLastColumnWithNoAutowrap() {
+        // KM-N-10: with DECAWM off, a combining mark after a character in the last column went to the cell before it.
+        feed("\u001B[?7l\u001B[80Ga\u0301")
+        assertEquals(listOf("", "a\u0301"), listOf(term.screen.getSelectedText(78, 0, 78, 0), term.screen.getSelectedText(79, 0, 79, 0)))
+        // ncurses writes the last cell with DECAWM off, and then sets DECAWM again. The next character must not wrap.
+        feed("\u001B[?7hb")
+        assertEquals(listOf("b", ""), listOf(term.screen.getSelectedText(79, 0, 79, 0), term.screen.getSelectedText(0, 1, 79, 1)))
+    }
 }

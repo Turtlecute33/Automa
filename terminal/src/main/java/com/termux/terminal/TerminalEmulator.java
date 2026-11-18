@@ -1201,6 +1201,10 @@ public final class TerminalEmulator {
     public void doDecSetOrReset(boolean setting, int externalBit) {
         int internalBit = mapDecSetBitToInternalBit(externalBit);
         if (internalBit != -1) {
+            // Automa: with DECAWM off, a character in the last column also sets mAboutToAutoWrap (for a combining mark,
+            // see emitCodePoint()). When DECAWM comes on, the next character must not wrap: ncurses writes the last
+            // cell of the screen in this way (KM-N-10).
+            if (internalBit == DECSET_BIT_AUTOWRAP && setting && !isDecsetInternalBitSet(DECSET_BIT_AUTOWRAP)) mAboutToAutoWrap = false;
             setDecsetinternalBit(internalBit, setting);
         }
         switch (externalBit) {
@@ -1524,6 +1528,8 @@ public final class TerminalEmulator {
         SavedScreenState state = (mScreen == mMainBuffer) ? mSavedStateMain : mSavedStateAlt;
         state.mSavedCursorRow = mCursorRow;
         state.mSavedCursorCol = mCursorCol;
+        // Automa: also the pending wrap, as in xterm. After a restore, the next character wrote over the last one (KM-N-10).
+        state.mSavedAboutToAutoWrap = mAboutToAutoWrap;
         state.mSavedEffect = mEffect;
         state.mSavedForeColor = mForeColor;
         state.mSavedBackColor = mBackColor;
@@ -1537,6 +1543,7 @@ public final class TerminalEmulator {
     private void restoreCursor() {
         SavedScreenState state = (mScreen == mMainBuffer) ? mSavedStateMain : mSavedStateAlt;
         setCursorRowCol(state.mSavedCursorRow, state.mSavedCursorCol);
+        mAboutToAutoWrap = state.mSavedAboutToAutoWrap; // Automa: see saveCursor() (KM-N-10).
         mEffect = state.mSavedEffect;
         mForeColor = state.mSavedForeColor;
         mBackColor = state.mSavedBackColor;
@@ -2534,7 +2541,9 @@ public final class TerminalEmulator {
         if (column < 0) column = 0;
         mScreen.setChar(column, mCursorRow, codePoint, getStyle());
 
-        if (autoWrap && displayWidth > 0)
+        // Automa: also with DECAWM off. The cursor then stays on a character in the last column, and a combining mark
+        // after it must go to it, not to the cell before it (KM-N-10). A wrap still needs DECAWM, see above.
+        if (displayWidth > 0)
             mAboutToAutoWrap = (mCursorCol == mRightMargin - displayWidth);
 
         mCursorCol = Math.min(mCursorCol + displayWidth, mRightMargin - 1);
@@ -2606,6 +2615,7 @@ public final class TerminalEmulator {
 
         mSavedStateMain.mSavedCursorRow = mSavedStateMain.mSavedCursorCol = mSavedStateMain.mSavedEffect = mSavedStateMain.mSavedDecFlags = 0;
         mSavedStateAlt.mSavedCursorRow = mSavedStateAlt.mSavedCursorCol = mSavedStateAlt.mSavedEffect = mSavedStateAlt.mSavedDecFlags = 0;
+        mSavedStateMain.mSavedAboutToAutoWrap = mSavedStateAlt.mSavedAboutToAutoWrap = false; // Automa: see saveCursor().
         mCurrentDecSetFlags = 0;
         // Initial wrap-around is not accurate but makes terminal more useful, especially on a small screen:
         setDecsetinternalBit(DECSET_BIT_AUTOWRAP, true);
@@ -2655,6 +2665,8 @@ public final class TerminalEmulator {
     static final class SavedScreenState {
         /** Saved state of the cursor position, Used to implement the save/restore cursor position escape sequences. */
         int mSavedCursorRow, mSavedCursorCol;
+        /** Automa: the pending wrap, see {@link #mAboutToAutoWrap} (KM-N-10). */
+        boolean mSavedAboutToAutoWrap;
         int mSavedEffect, mSavedForeColor, mSavedBackColor;
         int mSavedDecFlags;
         boolean mUseLineDrawingG0, mUseLineDrawingG1, mUseLineDrawingUsesG0 = true;
