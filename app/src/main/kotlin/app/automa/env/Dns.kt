@@ -18,7 +18,7 @@ object Dns {
         val host = link?.privateDnsServerName?.takeIf { link.isPrivateDnsActive }
         val private = host?.let { runCatching { InetAddress.getAllByName(it).toList() }.getOrNull() }.orEmpty()
         val text = conf(private, network = link?.dnsServers.orEmpty())
-        if (file.exists() && runCatching { file.readText() }.getOrNull() == text) return
+        if (Tree.readSmall(file) == text) return
         // No guest yet (a GitHub login before the setup): make no folder. A new rootfs/etc made the setup skip the
         // Alpine step, and each setup after that failed until a reset (review SEC-7).
         if (file.parentFile?.isDirectory != true) return

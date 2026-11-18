@@ -48,10 +48,10 @@ class Repos(private val env: Env) {
         refresh()
     }
 
-    private fun branch(dir: File): String? = runCatching {
-        val head = File(dir, ".git/HEAD").readText().trim()
-        if (head.startsWith("ref: refs/heads/")) head.removePrefix("ref: refs/heads/") else head.take(7)
-    }.getOrNull()
+    private fun branch(dir: File): String? {
+        val head = Tree.readSmall(File(dir, ".git/HEAD"))?.trim() ?: return null
+        return if (head.startsWith("ref: refs/heads/")) head.removePrefix("ref: refs/heads/") else head.take(7)
+    }
 
     /** The guest command for a clone, and the folder name. */
     data class Source(val program: List<String>, val name: String)

@@ -70,10 +70,11 @@ class Setup(private val env: Env, private val cache: File, private val tff: Tff,
     /** Reads the setup version. Also deletes what a stopped reset left (the rootfs step deletes a stopped extract). */
     suspend fun check() {
         val version = withContext(Dispatchers.IO) {
-            Tree.delete(old)
+            // A failed delete must not stop the start (review DS-L-19): the next check or reset deletes it again.
+            runCatching { Tree.delete(old) }
             _opencode.value = installedOpencode()
             agents.check()
-            runCatching { marker.readText().trim().toInt() }.getOrNull()
+            Tree.readSmall(marker)?.trim()?.toIntOrNull()
         }
         _state.value = when (version) {
             Pins.SETUP_VERSION -> State.Ready
@@ -228,7 +229,7 @@ class Setup(private val env: Env, private val cache: File, private val tff: Tff,
      * marker with no program kept the state Ready, and Update saw no newer version).
      */
     private fun installedOpencode() =
-        runCatching { opencodeMarker.readText().trim() }.getOrNull()?.takeIf { env.file("/usr/local/bin/opencode").isFile }
+        Tree.readSmall(opencodeMarker)?.trim()?.takeIf { env.file("/usr/local/bin/opencode").isFile }
 
     /**
      * Deletes the guest system, the repositories in it included. The secrets stay. A rename comes first, so that a
@@ -267,7 +268,7 @@ class Setup(private val env: Env, private val cache: File, private val tff: Tff,
         write("/etc/gitconfig", GITCONFIG)
         // The user can change these files: write them only when they are missing, or still the old Automa default.
         val config = env.file(OPENCODE_CONFIG_PATH)
-        if (!config.exists() || config.readText().trim() == OLD_OPENCODE_CONFIG) write(OPENCODE_CONFIG_PATH, OPENCODE_CONFIG)
+        if (!config.exists() || Tree.readSmall(config)?.trim() == OLD_OPENCODE_CONFIG) write(OPENCODE_CONFIG_PATH, OPENCODE_CONFIG)
         // opencode 2.x keeps the theme in cli.json and moves an old tui.json there itself: only a new guest gets cli.json.
         if (!env.file(CLI_CONFIG_PATH).exists() && !env.file(TUI_CONFIG_PATH).exists()) write(CLI_CONFIG_PATH, CLI_CONFIG)
         // No shared background server of opencode 2.x: it would run detached, outside the session (DESIGN §3).

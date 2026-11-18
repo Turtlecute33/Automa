@@ -53,12 +53,16 @@ class AutomaApp : Application() {
         }
         super.onCreate()
         scope.launch(Dispatchers.IO) {
-            prefs.load()
-            secrets.load()
-            setup.check()
-            tff.check()
-            Look.font(this@AutomaApp)
-            github.cleanUp()
+            // Each step on its own: a failed step must not keep the splash screen for ever or stop the app. A guest
+            // program can make a folder with no permissions where a step deletes (review DS-L-19, KM-L-05).
+            listOf<suspend () -> Unit>(
+                { prefs.load() },
+                { secrets.load() },
+                { setup.check() },
+                { tff.check() },
+                { Look.font(this@AutomaApp) },
+                { github.cleanUp() },
+            ).forEach { step -> runCatching { step() } }
             _ready.value = true
         }
     }

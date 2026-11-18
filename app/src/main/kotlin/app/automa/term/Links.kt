@@ -1,6 +1,7 @@
 package app.automa.term
 
 import android.os.FileObserver
+import app.automa.env.Tree
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,9 +40,10 @@ class Links(private val dir: File) {
 
     private fun read() {
         val file = File(dir, FILE)
-        val bytes = runCatching { file.inputStream().use { it.readNBytes(MAX + 2) } }.getOrNull()
+        // Not a FIFO: its open would stop the observer thread of the app (review DS-L-19).
+        val text = Tree.readSmall(file, MAX + 1)
         file.delete()
-        parse(bytes?.decodeToString() ?: return)?.let { _link.value = it }
+        parse(text ?: return)?.let { _link.value = it }
     }
 
     companion object {

@@ -53,7 +53,7 @@ class Agents(private val env: Env) {
     /** Reads the installed versions. Not on the main thread. */
     fun check() {
         _installed.value = Agent.ON_DEMAND.mapNotNull { agent ->
-            runCatching { marker(agent).readText().trim() }.getOrNull()?.takeIf { bin(agent).isFile }?.let { agent to it }
+            Tree.readSmall(marker(agent))?.trim()?.takeIf { bin(agent).isFile }?.let { agent to it }
         }.toMap()
     }
 

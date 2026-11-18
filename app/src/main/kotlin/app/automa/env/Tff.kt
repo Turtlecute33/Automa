@@ -34,7 +34,7 @@ class Tff(private val env: Env, private val secrets: Secrets) {
 
     /** Reads the number of models in the managed config. */
     suspend fun check() {
-        val count = withContext(Dispatchers.IO) { runCatching { count(file.readText()) }.getOrNull() }
+        val count = withContext(Dispatchers.IO) { Tree.readSmall(file, MAX_BYTES)?.let { runCatching { count(it) }.getOrNull() } }
         _status.value = if (count != null) Status.Loaded(count) else Status.NoKey
     }
 

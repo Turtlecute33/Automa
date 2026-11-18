@@ -27,7 +27,8 @@ class Prefs(private val context: Context) {
 
     fun load() {
         prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-        _lock.value = prefs.getBoolean(LOCK, false)
+        // A value of another type (a changed file) must not open the app with no lock (review DS-L-19).
+        _lock.value = runCatching { prefs.getBoolean(LOCK, false) }.getOrDefault(true)
         _login.value = prefs.getString(LOGIN, null)
         _fontSize.value = prefs.getInt(FONT, DEFAULT_FONT)
     }
