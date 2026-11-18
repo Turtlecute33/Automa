@@ -158,6 +158,7 @@ fun TerminalScreen(id: Int, nav: Navigator) {
             // Only the folder: the chip is narrow. The sheet shows the full title.
             chipLabel = tab.title.substringBefore(" · "),
             chipDot = dot(tab),
+            chipState = tab.exit?.let { "Ended with code $it" } ?: "Running",
             onChip = {
                 // The keyboard would cover the sheet.
                 view?.windowInsetsController?.hide(PlatformInsets.Type.ime())

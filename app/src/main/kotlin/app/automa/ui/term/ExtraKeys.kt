@@ -69,7 +69,15 @@ private val KeyShape = RoundedCornerShape(10.dp)
  * Rows are 48 dp high (touch target guideline).
  */
 @Composable
-fun ExtraKeys(view: () -> TerminalView?, mods: Modifiers, chipLabel: String, chipDot: Color, onChip: () -> Unit, onPaste: () -> Unit) {
+fun ExtraKeys(
+    view: () -> TerminalView?,
+    mods: Modifiers,
+    chipLabel: String,
+    chipDot: Color,
+    chipState: String,
+    onChip: () -> Unit,
+    onPaste: () -> Unit,
+) {
     fun key(code: Int) {
         view()?.handleKeyCode(code, mods.keyMod())
     }
@@ -85,7 +93,7 @@ fun ExtraKeys(view: () -> TerminalView?, mods: Modifiers, chipLabel: String, chi
         // Each part is a traversal group, so TalkBack reads the left keys first, then the arrows.
         Column(Modifier.weight(5f).semantics { isTraversalGroup = true }, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(Modifier.fillMaxWidth().height(48.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Chip(chipLabel, chipDot, onChip, Modifier.weight(2.6f))
+                Chip(chipLabel, chipDot, chipState, onChip, Modifier.weight(2.6f))
                 Key("ESC", "Escape", onTap = { key(KeyEvent.KEYCODE_ESCAPE) })
                 Key("TAB", "Tab", onTap = { key(KeyEvent.KEYCODE_TAB) })
                 Mod("CTRL", "Control", mods.ctrl)
@@ -240,9 +248,9 @@ private fun RowScope.IconKey(icon: ImageVector, spoken: String, onTap: () -> Uni
     }
 }
 
-/** The session: its name and state dot. A tap opens the session sheet. */
+/** The session: its name and state dot. A tap opens the session sheet. TalkBack says the [state] (review DS-L-68). */
 @Composable
-private fun Chip(label: String, dot: Color, onTap: () -> Unit, modifier: Modifier) {
+private fun Chip(label: String, dot: Color, state: String, onTap: () -> Unit, modifier: Modifier) {
     val tap by rememberUpdatedState(onTap)
     Row(
         modifier
@@ -253,6 +261,7 @@ private fun Chip(label: String, dot: Color, onTap: () -> Unit, modifier: Modifie
             .clearAndSetSemantics {
                 role = Role.Button
                 contentDescription = label
+                stateDescription = state
                 onClick("Show sessions") { tap(); true }
             }
             .pointerInput(Unit) { detectTapGestures(onTap = { tap() }) }
