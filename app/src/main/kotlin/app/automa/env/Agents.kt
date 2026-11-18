@@ -83,10 +83,12 @@ class Agents(private val env: Env) {
             if (code != 0) throw IOException("zstd failed (exit code $code): ${synchronized(output) { output.joinToString(" ") }}")
             withContext(Dispatchers.IO) {
                 if (release.sha256 != null && sha256(part) != release.sha256) throw IOException("The program is not the expected file (SHA-256)")
+                // The privacy settings before the program: when they cannot be written, no Codex is installed that
+                // runs without them.
+                if (agent == Agent.Codex) codexConfig()
                 // The guest programs run as the app user: owner-only permissions are sufficient.
                 if (!part.setExecutable(true) || !part.renameTo(bin(agent))) throw IOException("Cannot save ${agent.label}")
                 marker(agent).writeText("${release.version}\n")
-                if (agent == Agent.Codex) codexConfig()
             }
             _installed.value += agent to release.version
             _work.value = null
