@@ -228,4 +228,20 @@ class TerminalTest {
         feed("\u001Bc\u001B[3b")
         assertEquals("", term.screen.getSelectedText(0, 0, 79, 0))
     }
+
+    /** A private Int field of the emulator, for the margins. */
+    private fun field(name: String) = TerminalEmulator::class.java.getDeclaredField(name).apply { isAccessible = true }.getInt(term)
+
+    @Test
+    fun anInvertedRegionIsIgnored() {
+        // KM-N-08: xterm ignores a region whose top is not above its bottom. Upstream made another region from it and
+        // moved the cursor.
+        feed("\u001B[5;10r\u001B[3;7H\u001B[10;2r\u001B[30;40r\u001B[7;7r")
+        assertEquals(listOf(4, 10, 2, 6), listOf(field("mTopMargin"), field("mBottomMargin"), term.cursorRow, term.cursorCol))
+        feed("\u001B[7;8r")
+        assertEquals(listOf(6, 8, 0, 0), listOf(field("mTopMargin"), field("mBottomMargin"), term.cursorRow, term.cursorCol))
+        // The same for the left and right margins (DECSLRM).
+        feed("\u001B[?69h\u001B[5;10s\u001B[3;7H\u001B[10;2s\u001B[90;99s\u001B[7;7s")
+        assertEquals(listOf(4, 10, 2, 6), listOf(field("mLeftMargin"), field("mRightMargin"), term.cursorRow, term.cursorCol))
+    }
 }

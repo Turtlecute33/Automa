@@ -1801,20 +1801,31 @@ public final class TerminalEmulator {
                 // scheme, but we store the first line below the bottom-most scrolling line.
                 // As a result, we adjust the top line by -1, but we leave the bottom line alone.
                 // Also require that top + 2 <= bottom.
-                mTopMargin = Math.max(0, Math.min(getArg0(1) - 1, mRows - 2));
-                mBottomMargin = Math.max(mTopMargin + 2, Math.min(getArg1(mRows), mRows));
+                // Automa: as in xterm, ignore a region whose top is not above its bottom. Upstream made another region
+                // from it and moved the cursor (KM-N-08).
+                int top = getArg0(1);
+                int bottom = Math.min(getArg1(mRows), mRows);
+                if (bottom > top) {
+                    mTopMargin = top - 1;
+                    mBottomMargin = bottom;
 
-                // DECSTBM moves the cursor to column 1, line 1 of the page respecting origin mode.
-                setCursorPosition(0, 0);
+                    // DECSTBM moves the cursor to column 1, line 1 of the page respecting origin mode.
+                    setCursorPosition(0, 0);
+                }
             }
             break;
             case 's':
                 if (isDecsetInternalBitSet(DECSET_BIT_LEFTRIGHT_MARGIN_MODE)) {
                     // Set left and right margins (DECSLRM - http://www.vt100.net/docs/vt510-rm/DECSLRM).
-                    mLeftMargin = Math.min(getArg0(1) - 1, mColumns - 2);
-                    mRightMargin = Math.max(mLeftMargin + 1, Math.min(getArg1(mColumns), mColumns));
-                    // DECSLRM moves the cursor to column 1, line 1 of the page.
-                    setCursorPosition(0, 0);
+                    // Automa: as in xterm, ignore margins whose left is not left of the right (KM-N-08).
+                    int left = getArg0(1);
+                    int right = Math.min(getArg1(mColumns), mColumns);
+                    if (right > left) {
+                        mLeftMargin = left - 1;
+                        mRightMargin = right;
+                        // DECSLRM moves the cursor to column 1, line 1 of the page.
+                        setCursorPosition(0, 0);
+                    }
                 } else {
                     // Save cursor (ANSI.SYS), available only when DECLRMM is disabled.
                     saveCursor();
