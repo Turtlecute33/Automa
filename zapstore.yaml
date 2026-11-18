@@ -1,0 +1,28 @@
+# Zapstore listing. The Zapstore indexer reads this file and publishes each new GitHub release.
+repository: https://github.com/Turtlecute33/Automa
+summary: opencode, Claude Code and Codex in a local Linux environment on the phone.
+description: |
+  Automa runs AI coding agents on the phone itself. It is not a remote control for a computer. The
+  app has a small Alpine Linux system that runs with PRoot, and a terminal for the agents and a
+  shell. Log in to GitHub, clone repositories, let an agent do fixes and analysis, then commit, push
+  and make releases from the phone. No trackers, no Google Play Services.
+
+  - **Chat**: each agent has a chat made for touch. Each permission request, each question and each
+    plan is a card with buttons. Commands and file changes show as cards with the output and the diff.
+  - **Terminal**: the real terminal UI of each agent, with two rows of extra keys.
+  - **Agents**: opencode with Tokens for Friends models. Claude Code and Codex are optional: install
+    them in Settings and log in with your own account.
+  - **GitHub**: the device flow of the GitHub CLI. Clone, push, pull requests and releases.
+  - **Security**: pinned SHA-256 digests for the setup, encrypted keys in the Android Keystore, no
+    backup, app lock.
+
+  On GrapheneOS, set "Native code debugging" to Allowed for Automa: PRoot uses ptrace.
+license: GPL-3.0-only
+tags: [ai, coding-agent, terminal, linux, developer-tools]
+icon: ./docs/icon.png
+images:
+  - ./docs/screenshots/home.png
+  - ./docs/screenshots/chat.png
+  - ./docs/screenshots/terminal.png
+  - ./docs/banner.png
+metadata_sources: []
