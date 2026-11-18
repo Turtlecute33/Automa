@@ -1,6 +1,7 @@
 package app.automa.env
 
 import android.content.Context
+import app.automa.chat.Pipe
 import app.automa.data.Secrets
 import app.automa.term.SessionService
 import kotlinx.coroutines.Dispatchers
@@ -66,7 +67,9 @@ class Env(private val context: Context, private val secrets: Secrets) {
             val process = withContext(NonCancellable) { start(program, cwd, mark, NO_PROMPT, mergeErrors = true) }
                 .also { it.outputStream.close() }
             val reader = launch(Dispatchers.IO) {
-                runCatching { process.inputStream.bufferedReader().forEachLine(line) }
+                // Pipe.lines: a line has a length limit (a git server can send one very long "remote:" line). Each line
+                // also splits at a carriage return, as readLine does (progress text).
+                runCatching { Pipe.lines(process.inputStream) { it.split('\r').forEach(line) } }
             }
             try {
                 runInterruptible(Dispatchers.IO) { process.waitFor() }.also { reader.join() }
