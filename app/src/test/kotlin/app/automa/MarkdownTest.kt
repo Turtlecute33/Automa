@@ -6,6 +6,7 @@ import androidx.compose.ui.text.TextLinkStyles
 import app.automa.chat.Pipe
 import app.automa.ui.chat.Block
 import app.automa.ui.chat.Markdown
+import app.automa.ui.chat.table
 import java.io.ByteArrayInputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -91,6 +92,14 @@ class MarkdownTest {
         Markdown.blocks(brackets + "\n" + "|" + "-|".repeat(50_000))
         val ms = (System.nanoTime() - start) / 1_000_000
         assertTrue(ms < 1500, "took $ms ms")
+    }
+
+    @Test
+    fun aWideTableIsNotPadded() {
+        // The padding makes each row as wide as the widest one: 59,999 characters became 150 million.
+        val rows = listOf(listOf("x".repeat(29_000), "y")) + List(10_000) { listOf("", "z") }
+        assertTrue(table(rows).length < 100_000)
+        assertEquals("a    bb\nccc  d", table(listOf(listOf("a", "bb"), listOf("ccc", "d"))))
     }
 
     @Test

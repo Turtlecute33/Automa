@@ -134,9 +134,16 @@ private fun LinkDialog(url: String, onDismiss: () -> Unit) {
 
 private const val MAX_MARKDOWN = 60_000
 
-/** A table as aligned monospace columns. */
-private fun table(rows: List<List<String>>): String {
+/** At most this many characters after the padding of a table; a larger table keeps its cells as they came. */
+private const val MAX_TABLE = 200_000
+
+/**
+ * A table as aligned monospace columns. The padding makes each row as wide as the widest one, so a crafted table of
+ * 60,000 characters became 150 million (out of memory, on the main thread): a table over [MAX_TABLE] is not padded.
+ */
+internal fun table(rows: List<List<String>>): String {
     val columns = rows.maxOfOrNull { it.size } ?: 0
     val widths = (0 until columns).map { c -> rows.maxOf { it.getOrNull(c)?.length ?: 0 } }
+    if (rows.size.toLong() * (widths.sum() + 2L * columns) > MAX_TABLE) return rows.joinToString("\n") { it.joinToString(" | ") }
     return rows.joinToString("\n") { row -> (0 until columns).joinToString("  ") { c -> row.getOrElse(c) { "" }.padEnd(widths[c]) }.trimEnd() }
 }
