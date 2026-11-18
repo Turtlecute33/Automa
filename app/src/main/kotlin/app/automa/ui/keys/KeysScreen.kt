@@ -137,7 +137,9 @@ fun KeysScreen(nav: Navigator) {
 @Composable
 private fun TffRow(hasKey: Boolean) {
     val app = LocalContext.current.app
-    val status by app.tff.status.collectAsStateWithLifecycle()
+    val loaded by app.tff.status.collectAsStateWithLifecycle()
+    // With no key, no old model count or error: the key was deleted (review KM-P-06).
+    val status = if (hasKey || loaded == Tff.Status.Loading) loaded else Tff.Status.NoKey
     val text = when (val s = status) {
         Tff.Status.NoKey -> if (hasKey) "Tap reload to get the model list" else "Add ${Tff.KEY} to get the model list"
         Tff.Status.Loading -> "Getting the model list…"

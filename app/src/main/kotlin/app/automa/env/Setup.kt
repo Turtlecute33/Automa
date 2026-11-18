@@ -254,6 +254,7 @@ class Setup(private val env: Env, private val cache: File, private val tff: Tff,
             throw e
         }
         _opencode.value = null
+        _update.value = Update.Idle
         agents.clear()
         withContext(Dispatchers.IO) { Tree.delete(old) }
     }
