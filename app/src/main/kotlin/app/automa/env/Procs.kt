@@ -10,8 +10,13 @@ import java.io.File
  * (NoClassDefFoundError on API 37), so this reads /proc. Android shows only the processes of this app user there.
  */
 object Procs {
-    /** Stops [root] and all its descendants with SIGKILL. The tree is read first, while it is still connected. */
+    /**
+     * Stops [root] and all its descendants with SIGKILL. The tree is read first, while it is still connected. A pid
+     * of 0 or less is not a process: a terminal tab that closes before its first layout has pid 0, and kill(0) would
+     * stop the process group of the app itself.
+     */
     fun kill(root: Int) {
+        if (root <= 0) return
         tree(root).asReversed().forEach { runCatching { Os.kill(it, OsConstants.SIGKILL) } }
     }
 
