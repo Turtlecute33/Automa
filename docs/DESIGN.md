@@ -95,7 +95,7 @@ The single source of truth for Automa. Findings with IDs are in `research/`.
   says "Automa is working" and has no Stop action. The service stops after the last job and the
   last session.
 - A session runs `bash -l`, or an agent in a repository and then `bash -l` in the same folder:
-  `opencode` (a tap on the repository), or `claude` or `codex --no-daemon` (the repository menu,
+  `opencode` (a tap on the repository), or `claude` or `codex --no-daemon --disable plugins` (the repository menu,
   when installed).
 - A stop (close, "Stop all", a cancel of `Env.run`) sends SIGKILL to each process of the tree, read
   from `/proc` (`env/Procs.kt`, research F-8). PRoot itself does not stop its programs.

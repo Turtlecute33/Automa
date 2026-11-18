@@ -425,8 +425,9 @@ class Setup(private val env: Env, private val cache: File, private val tff: Tff,
             |# Links that programs open (logins) go to Automa, which asks before it opens the browser (DESIGN §5).
             |export BROWSER=$XDG_OPEN
             |if [ -n "${'$'}BASH_VERSION" ]; then
-            |  # Codex with no background server: its daemon needs the full Codex package (research F-10).
-            |  alias codex='codex --no-daemon'
+            |  # Codex with no background server: its daemon needs the full Codex package (research F-10). No plugin
+            |  # sync at the start (research CX-5).
+            |  alias codex='codex --no-daemon --disable plugins'
             |  PS1='\[\e[1;32m\]\w\[\e[0m\] \$ '
             |fi
             |""".trimMargin()

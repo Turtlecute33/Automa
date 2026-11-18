@@ -20,7 +20,8 @@ import java.security.MessageDigest
 enum class Agent(val label: String, val command: String, val launch: String = command) {
     Opencode("opencode", "opencode"),
     Claude("Claude Code", "claude"),
-    Codex("Codex", "codex", "codex --no-daemon"),
+    // No plugin sync at the start (research CX-5): the TUI has the same start traffic as app-server.
+    Codex("Codex", "codex", "codex --no-daemon --disable plugins"),
     ;
 
     companion object {

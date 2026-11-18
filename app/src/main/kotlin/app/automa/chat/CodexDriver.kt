@@ -505,7 +505,7 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
         }
     }
 
-    override fun terminal() = if (turns > 0 && safe(thread)) "codex --no-daemon resume $thread" else null
+    override fun terminal() = if (turns > 0 && safe(thread)) "codex --no-daemon --disable plugins resume $thread" else null
 
     override fun closed() {
         rpc.close()
