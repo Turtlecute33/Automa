@@ -212,7 +212,9 @@ public final class TerminalView extends View {
                         int diff = mouseTrackingAtStartOfFling ? (newY - mLastY) : (newY - mTopRow);
                         doScroll(e2, diff);
                         mLastY = newY;
-                        if (more) post(this);
+                        // Automa: one step for each frame. post() ran the next step at once, many times for each
+                        // frame, and kept the main thread busy for the whole fling (KM-Q-05).
+                        if (more) postOnAnimation(this);
                     }
                 });
 
