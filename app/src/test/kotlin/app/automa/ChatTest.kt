@@ -387,6 +387,26 @@ class ChatTest {
     }
 
     @Test
+    fun twoCodexChatsInOneFolderAskOnce() {
+        // Two trust tables for one folder make ~/.codex/config.toml invalid TOML, and Codex then does not start at all.
+        val guest = FakeGuest()
+        val first = CodexDriver(dir, guest).wired()
+        val second = CodexDriver(dir, guest).wired()
+        val a = background.async { first.prepare() }
+        val b = background.async { second.prepare() }
+        runBlocking {
+            while (first.state.value.asks.isEmpty() && second.state.value.asks.isEmpty()) kotlinx.coroutines.delay(10)
+            kotlinx.coroutines.delay(100)
+            val asking = listOf(first, second).filter { it.state.value.asks.isNotEmpty() }
+            assertEquals(1, asking.size)
+            asking.single().answer(asking.single().state.value.asks.single(), Answer.Pick(app.automa.chat.Choice("trusted", "Trust", app.automa.chat.Choice.Kind.Allow)))
+            assertTrue(a.await())
+            assertTrue(b.await())
+        }
+        assertEquals(1, Regex(Regex.escape("[projects.\"$dir\"]")).findAll(guest.files["/root/.codex/config.toml"].orEmpty()).count())
+    }
+
+    @Test
     fun onlySafeIdsGoIntoACommandLine() {
         assertTrue(app.automa.chat.safe("ses_e143d4d47ffeechXHNrkuDVjGh"))
         assertTrue(app.automa.chat.safe("01a1ebbf-1e6e-7b50-8fd0-c9c51b6421b0"))

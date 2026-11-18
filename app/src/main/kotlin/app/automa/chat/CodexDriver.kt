@@ -1,6 +1,8 @@
 package app.automa.chat
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -32,9 +34,12 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
 
     /**
      * `thread/start` trusts a git repository with no question (research CX-6), and a trusted folder loads its
-     * `.codex/` settings, which can start programs. Thus the user decides first, and Automa writes the answer.
+     * `.codex/` settings, which can start programs. Thus the user decides first, and Automa writes the answer. One
+     * decision at a time: two chats in a new folder both wrote the table, and a table twice makes the TOML invalid.
      */
-    override suspend fun prepare(): Boolean {
+    override suspend fun prepare(): Boolean = TRUST_LOCK.withLock { decide() }
+
+    private suspend fun decide(): Boolean {
         val config = guest.read(CONFIG, 1 shl 20).orEmpty()
         val table = "[projects.\"${toml(dir)}\"]"
         if (table in config) return true
@@ -455,6 +460,7 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
 
     companion object {
         private const val CONFIG = "/root/.codex/config.toml"
+        private val TRUST_LOCK = Mutex()
         private const val TRUST = "trust"
         private const val PLAN = "plan"
         private const val OUTPUT = 20_000
