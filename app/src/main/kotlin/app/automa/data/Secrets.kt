@@ -47,6 +47,17 @@ class Secrets(
 
     suspend fun remove(name: String) = lock.withLock { write(read() - name) }
 
+    /**
+     * Deletes all secrets. The way out when the file cannot be opened (for example after the Keystore key is lost):
+     * then each put and remove fails (review DS-L-43).
+     */
+    suspend fun clear() = lock.withLock {
+        withContext(Dispatchers.IO) {
+            AtomicFile(file).delete()
+            _names.value = emptyList()
+        }
+    }
+
     private suspend fun read(): Map<String, String> = withContext(Dispatchers.IO) {
         if (!file.exists()) return@withContext emptyMap()
         val json = JSONObject(open(AtomicFile(file).readFully()).decodeToString())

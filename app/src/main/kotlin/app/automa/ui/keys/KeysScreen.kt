@@ -57,6 +57,7 @@ fun KeysScreen(nav: Navigator) {
     val scope = rememberCoroutineScope()
     val names by app.secrets.names.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
+    var clearing by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -91,7 +92,30 @@ fun KeysScreen(nav: Navigator) {
             }
         }
     }
-    if (adding) AddKeyDialog(onDismiss = { adding = false })
+    if (adding) AddKeyDialog(onDismiss = { adding = false }, onClearAll = { adding = false; clearing = true })
+    if (clearing) {
+        AlertDialog(
+            onDismissRequest = { clearing = false },
+            title = { Text("Delete all keys?") },
+            text = {
+                Text(
+                    "Automa deletes all keys and the GitHub login on this phone. Use this only when Automa cannot open " +
+                        "the saved keys: then you cannot add or delete a key. After this, you can add the keys again. " +
+                        "The GitHub token stays valid until you revoke it on GitHub.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    clearing = false
+                    app.scope.launch {
+                        app.secrets.clear()
+                        app.prefs.setLogin(null)
+                    }
+                }) { Text("Delete all") }
+            },
+            dismissButton = { TextButton(onClick = { clearing = false }) { Text("Cancel") } },
+        )
+    }
 }
 
 /** The TFF models in opencode (DESIGN §8): the state of the list, and a reload. */
@@ -125,7 +149,7 @@ private fun TffRow(hasKey: Boolean) {
 private val SUGGESTED = listOf(Tff.KEY)
 
 @Composable
-private fun AddKeyDialog(onDismiss: () -> Unit) {
+private fun AddKeyDialog(onDismiss: () -> Unit, onClearAll: () -> Unit) {
     val app = LocalContext.current.app
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
@@ -160,7 +184,11 @@ private fun AddKeyDialog(onDismiss: () -> Unit) {
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    error?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error)
+                        // A save fails each time when the saved keys cannot be opened: a way out (review DS-L-43).
+                        TextButton(onClick = onClearAll) { Text("Delete all keys") }
+                    }
                 }
             }
         },
