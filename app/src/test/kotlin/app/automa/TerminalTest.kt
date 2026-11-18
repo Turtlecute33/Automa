@@ -217,4 +217,15 @@ class TerminalTest {
         feed("\u001BP+q6B75\u001B\\")
         assertEquals("\u001BP1+r6B75=1B5B41\u001B\\", out.sent.toString())
     }
+
+    @Test
+    fun aFullResetLeavesTheAlternateScreenAndTheStyle() {
+        // KM-N-07: RIS (ESC c) stayed on the alternate screen, kept bold, and REP repeated the character from before it.
+        feed("\u001B[?1049h\u001B[1mX\u001Bc")
+        assertFalse(term.isAlternateBufferActive)
+        feed("A")
+        assertEquals(0, TextStyle.decodeEffect(term.screen.getStyleAt(0, 0)))
+        feed("\u001Bc\u001B[3b")
+        assertEquals("", term.screen.getSelectedText(0, 0, 79, 0))
+    }
 }

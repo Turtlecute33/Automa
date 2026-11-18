@@ -1455,6 +1455,12 @@ public final class TerminalEmulator {
                 }
                 break;
             case 'c': // RIS - Reset to Initial State (http://vt100.net/docs/vt510-rm/RIS).
+                // Automa: back to the main screen, as in xterm. Upstream cleared the alternate screen and stayed on it
+                // (KM-N-07). resizeScreen() fits the main screen to the current size, as for DECRST 1049.
+                if (mScreen == mAltBuffer) {
+                    mScreen = mMainBuffer;
+                    resizeScreen();
+                }
                 reset();
                 mMainBuffer.clearTranscript();
                 blockClear(0, 0, mColumns, mRows);
@@ -2558,6 +2564,9 @@ public final class TerminalEmulator {
         mBottomMargin = mRows;
         mRightMargin = mColumns;
         mAboutToAutoWrap = false;
+        // Automa: also the effect (bold and others) and the character for REP. They stayed after RIS (KM-N-07).
+        mEffect = 0;
+        mLastEmittedCodePoint = -1;
         mForeColor = mSavedStateMain.mSavedForeColor = mSavedStateAlt.mSavedForeColor = TextStyle.COLOR_INDEX_FOREGROUND;
         mBackColor = mSavedStateMain.mSavedBackColor = mSavedStateAlt.mSavedBackColor = TextStyle.COLOR_INDEX_BACKGROUND;
         setDefaultTabStops();
