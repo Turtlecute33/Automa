@@ -286,8 +286,12 @@ class ChatTest {
         val guest = FakeGuest(mutableMapOf("/root/.codex/auth.json" to "token", "$dir/a.txt" to "old"))
         val outside = app.automa.chat.Tools.claudeDiff("Write", JSONObject().put("file_path", "/root/.codex/auth.json").put("content", "x"), guest, dir)!!
         assertTrue(outside.files.single().lines.none { "token" in it })
+        assertTrue("not shown" in outside.files.single().path)
         val inside = app.automa.chat.Tools.claudeDiff("Write", JSONObject().put("file_path", "$dir/a.txt").put("content", "new"), guest, dir)!!
         assertEquals(listOf("-old", "+new"), inside.files.single().lines)
+        assertEquals("a.txt", inside.files.single().path)
+        val created = app.automa.chat.Tools.claudeDiff("Write", JSONObject().put("file_path", "$dir/b.txt").put("content", "new"), guest, dir)!!
+        assertEquals("b.txt", created.files.single().path)
         assertTrue(guest.reads.all { it.second == dir })
     }
 

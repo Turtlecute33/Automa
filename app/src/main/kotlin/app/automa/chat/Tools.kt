@@ -43,13 +43,20 @@ object Tools {
 
     /**
      * The diff of an Edit or a Write before it runs. For a Write, the old file comes from the guest, only from the chat
-     * folder: a model must not show other files, for example agent logins (review SEC-22).
+     * folder: a model must not show other files, for example agent logins (review SEC-22). For other paths, the
+     * label says that the Write replaces a file that the card does not show.
      */
     fun claudeDiff(name: String, input: JSONObject, guest: Guest, dir: String): Diff? {
         val path = input.str("file_path")
         return when (name) {
             "Edit" -> Diff.of(short(path, dir), clean(input.str("old_string")), clean(input.str("new_string")))
-            "Write" -> Diff.of(short(path, dir), clean(guest.read(path, OLD_FILE, within = dir).orEmpty()), clean(input.str("content")))
+            "Write" -> {
+                val old = guest.read(path, OLD_FILE, within = dir)
+                // Outside the chat folder the old file is not read: the diff must not look like a new file.
+                val outside = old == null && (!path.startsWith("$dir/") || "/../" in path)
+                val label = short(path, dir) + if (outside) " (replaces the file; the old text is not shown)" else ""
+                Diff.of(label, clean(old.orEmpty()), clean(input.str("content")))
+            }
             else -> null
         }
     }
