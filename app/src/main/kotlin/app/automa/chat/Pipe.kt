@@ -4,6 +4,7 @@ import app.automa.env.Env
 import app.automa.env.Procs
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
@@ -72,13 +73,20 @@ class Pipe private constructor(private val process: Process, private val mark: S
             return Pipe(process, mark)
         }
 
-        /** Splits [input] into UTF-8 lines. A line longer than [MAX_LINE] is dropped. */
+        /**
+         * Splits [input] into UTF-8 lines. A line longer than [MAX_LINE] is dropped. A read error is the end: a stop
+         * closes the streams (Process.destroy) while this thread reads, and an exception here would stop the app.
+         */
         fun lines(input: InputStream, onLine: (String) -> Unit) {
             val buf = ByteArray(64 shl 10)
             val line = ByteArrayOutputStream()
             var skip = false
             while (true) {
-                val n = input.read(buf)
+                val n = try {
+                    input.read(buf)
+                } catch (_: IOException) {
+                    -1
+                }
                 if (n < 0) break
                 var start = 0
                 for (i in 0 until n) {

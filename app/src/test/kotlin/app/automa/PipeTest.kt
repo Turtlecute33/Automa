@@ -2,8 +2,11 @@ package app.automa
 
 import app.automa.chat.Pipe
 import org.json.JSONObject
+import java.io.IOException
+import java.io.InputStream
 import kotlin.concurrent.thread
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 /** The chat transport with a real host process (no guest, no PRoot). */
@@ -27,5 +30,24 @@ class PipeTest {
         } finally {
             process.destroyForcibly()
         }
+    }
+
+    @Test
+    fun aClosedStreamEndsTheLines() {
+        // Process.destroy() closes the streams while the reader threads read: an IOException is the end, not an error.
+        val input = object : InputStream() {
+            private val data = "{\"a\":1}\n{\"b\"".toByteArray()
+            private var done = false
+            override fun read(): Int = throw IOException("Stream closed")
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                if (done) throw IOException("Stream closed")
+                done = true
+                data.copyInto(b, off)
+                return data.size
+            }
+        }
+        val lines = mutableListOf<String>()
+        Pipe.lines(input) { lines += it }
+        assertEquals(listOf("{\"a\":1}", "{\"b\""), lines)
     }
 }
