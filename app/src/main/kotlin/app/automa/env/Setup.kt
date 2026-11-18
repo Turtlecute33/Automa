@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 import app.automa.term.Links
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -232,18 +233,27 @@ class Setup(private val env: Env, private val cache: File, private val tff: Tff,
         Tree.readSmall(opencodeMarker)?.trim()?.takeIf { env.file("/usr/local/bin/opencode").isFile }
 
     /**
-     * Deletes the guest system, the repositories in it included. The secrets stay. A rename comes first, so that a
-     * stop during the delete cannot leave a guest system with no programs that counts as ready (review SEC-7).
+     * Deletes the guest system, the repositories in it included. The secrets stay. The state changes first, so that
+     * the home screen opens no new session or chat; then [stop] ends the open ones and waits for them, and only then
+     * the files go (review DS-L-07, KM-M-11). A rename comes first, so that a stop during the delete cannot leave a
+     * guest system with no programs that counts as ready (review SEC-7).
      */
-    suspend fun reset() = running.withLock {
-        withContext(Dispatchers.IO) {
-            Tree.delete(old)
-            if (env.rootfs.exists() && !env.rootfs.renameTo(old)) throw IOException("Cannot delete the environment")
-            _state.value = State.Needed(update = false)
-            _opencode.value = null
-            agents.clear()
-            Tree.delete(old)
+    suspend fun reset(stop: suspend () -> Unit) = running.withLock {
+        _state.value = State.Needed(update = false)
+        try {
+            stop()
+            withContext(Dispatchers.IO) {
+                Tree.delete(old)
+                if (env.rootfs.exists() && !env.rootfs.renameTo(old)) throw IOException("Cannot delete the environment")
+            }
+        } catch (e: Exception) {
+            // Nothing is deleted: the state of the guest system again.
+            withContext(NonCancellable) { check() }
+            throw e
         }
+        _opencode.value = null
+        agents.clear()
+        withContext(Dispatchers.IO) { Tree.delete(old) }
     }
 
     private val old get() = File(env.rootfs.path + ".old")

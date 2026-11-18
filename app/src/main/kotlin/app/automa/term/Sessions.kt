@@ -10,9 +10,11 @@ import app.automa.env.Procs
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
 import com.termux.view.TerminalView
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 import kotlin.concurrent.thread
 
 /** One terminal session for the UI. [exit] is set when the process ended with an error. */
@@ -35,6 +37,9 @@ class Sessions(private val context: Context, private val env: Env) : TerminalSes
     val tabs: StateFlow<List<Tab>> = _tabs.asStateFlow()
     private var nextId = 1
 
+    /** The number of [stopAll] calls. */
+    private var stopped = 0
+
     /** The view that shows a session now. It gets the screen updates. */
     var view: TerminalView? = null
 
@@ -44,12 +49,17 @@ class Sessions(private val context: Context, private val env: Env) : TerminalSes
      * The process starts when a view gives the session its size.
      */
     suspend fun open(dir: String, agent: Agent?, launch: String? = null): Int {
+        val stops = stopped
         val environment = env.environment().map { (k, v) -> "$k=$v" }.toTypedArray()
+        val id = nextId++
+        // A reset stopped all sessions while this one started: no new session in a guest that the reset deletes
+        // (review KM-M-11). The terminal screen closes when it finds no tab with this id.
+        if (stopped != stops) return id
         val program = if (agent != null) listOf("/bin/bash", "-lc", "${launch ?: agent.launch}; exec bash -l") else listOf("/bin/bash", "-l")
         val argv = env.argv(dir, program).toTypedArray()
         val session = TerminalSession(env.proot, context.cacheDir.path, argv, environment, TRANSCRIPT_ROWS, this)
         val name = if (dir == Env.HOME) "~" else dir.substringAfterLast('/')
-        val tab = Tab(nextId++, if (agent != null) "$name · ${agent.label}" else name, dir)
+        val tab = Tab(id, if (agent != null) "$name · ${agent.label}" else name, dir)
         entries += Entry(tab, session)
         publish()
         return tab.id
@@ -71,6 +81,18 @@ class Sessions(private val context: Context, private val env: Env) : TerminalSes
     }
 
     fun closeAll() = entries.map { it.tab.id }.forEach(::close)
+
+    /**
+     * Closes all sessions and waits until their processes have ended, at most [STOP_MS] (before a reset, review
+     * DS-L-07). [close] only starts the stop.
+     */
+    suspend fun stopAll() {
+        stopped++
+        val pids = entries.filter { it.session.isRunning }.map { it.session.pid }
+        entries.clear()
+        publish()
+        withContext(Dispatchers.IO) { Procs.stop(pids, STOP_MS) }
+    }
 
     private fun publish() {
         _tabs.value = entries.map { it.tab }
@@ -127,5 +149,6 @@ class Sessions(private val context: Context, private val env: Env) : TerminalSes
 
     private companion object {
         const val TRANSCRIPT_ROWS = 3000
+        const val STOP_MS = 3000L
     }
 }

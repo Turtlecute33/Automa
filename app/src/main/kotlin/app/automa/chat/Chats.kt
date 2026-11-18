@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlin.concurrent.thread
 
@@ -84,10 +85,16 @@ class Chats(private val context: Context, private val env: Env, private val scop
         publish()
         all.forEach { it.job.cancel() }
         withContext(Dispatchers.IO) { all.forEach { it.driver.stop() } }
+        // Also the chat jobs: a job that ends can still write into the guest (review KM-M-10). At most STOP_MS.
+        withTimeoutOrNull(STOP_MS) { all.forEach { it.job.join() } }
     }
 
     private fun publish() {
         _tabs.value = items.map { it.tab }
         SessionService.sync(context)
+    }
+
+    private companion object {
+        const val STOP_MS = 3000L
     }
 }

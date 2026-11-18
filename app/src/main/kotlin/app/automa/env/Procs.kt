@@ -17,7 +17,31 @@ object Procs {
      */
     fun kill(root: Int) {
         if (root <= 0) return
-        tree(root).asReversed().forEach { runCatching { Os.kill(it, OsConstants.SIGKILL) } }
+        signal(tree(root))
+    }
+
+    /**
+     * Stops the trees of [roots] as [kill] does, then waits until each of their processes has ended, at most [ms]
+     * (before a reset, review DS-L-07). Not on the main thread.
+     */
+    fun stop(roots: List<Int>, ms: Long) {
+        val pids = roots.filter { it > 0 }.flatMap { tree(it) }
+        signal(pids)
+        val end = System.nanoTime() + ms * 1_000_000
+        while (pids.any { running(read("/proc/$it/stat")) } && System.nanoTime() < end) Thread.sleep(POLL_MS)
+    }
+
+    /** SIGKILL to each of [pids], the last first (the children before their parents). */
+    private fun signal(pids: List<Int>) = pids.asReversed().forEach { runCatching { Os.kill(it, OsConstants.SIGKILL) } }
+
+    /**
+     * True when the /proc/<pid>/stat line [stat] is of a process that runs. No line (no process) and the states Z and
+     * X (it has ended, and its parent has not collected it yet) are false.
+     */
+    fun running(stat: String): Boolean {
+        if (')' !in stat) return false
+        val state = stat.substringAfterLast(')').trim().firstOrNull() ?: return false
+        return state != 'Z' && state != 'X'
     }
 
     /** The PID of a direct child of this app whose command line contains [marker], or null. */
@@ -58,4 +82,6 @@ object Procs {
     private fun pids() = File("/proc").list().orEmpty().mapNotNull { it.toIntOrNull() }
 
     private fun read(path: String) = runCatching { File(path).readText() }.getOrDefault("")
+
+    private const val POLL_MS = 20L
 }

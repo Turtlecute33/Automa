@@ -220,11 +220,10 @@ fun SettingsScreen(nav: Navigator) {
             confirmButton = {
                 TextButton(onClick = {
                     resetting = false
-                    app.sessions.closeAll()
                     app.scope.launch {
-                        // The chat agents first: they must not write into the guest during the delete (review SEC-16).
-                        app.chats.stopAll()
-                        runCatching { app.setup.reset() }
+                        // The sessions and the chat agents end first: they must not write into the guest during the
+                        // delete (review SEC-16, DS-L-07).
+                        runCatching { app.setup.reset { app.sessions.stopAll(); app.chats.stopAll() } }
                     }
                     nav.back()
                 }) { Text("Reset") }

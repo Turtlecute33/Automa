@@ -138,6 +138,15 @@ class ParseTest {
     }
 
     @Test
+    fun procStatRunning() {
+        assertTrue(Procs.running("1234 (bash) S 42 1234 1234 0 -1"))
+        assertTrue(Procs.running("99 (a) Z) R 7 99 99"))
+        assertFalse(Procs.running("1234 (proot) Z 42 1234 1234 0 -1"))
+        assertFalse(Procs.running("1234 (proot) X 42"))
+        assertFalse(Procs.running(""))
+    }
+
+    @Test
     fun resolvConf() {
         val net = listOf("192.0.2.1", "192.0.2.2", "192.0.2.3", "192.0.2.4").map(InetAddress::getByName)
         val private = listOf(InetAddress.getByName("198.51.100.9"))
