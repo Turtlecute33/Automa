@@ -151,4 +151,11 @@ class TerminalTest {
         assertFalse(text.any { it == '\r' || it == '\u007F' } || text.lines().size != 2, text)
         assertEquals(listOf("echo safe\u2424id", "AB"), text.lines())
     }
+
+    @Test
+    fun termcapPageKeysAreNotSwapped() {
+        // "kN" (next page) is PgDn, ESC [ 6 ~; "kP" (previous page) is PgUp, ESC [ 5 ~. vim asks for them.
+        feed("\u001BP+q6B4E;6B50\u001B\\")
+        assertEquals("\u001BP1+r6B4E=1B5B367E\u001B\\\u001BP1+r6B50=1B5B357E\u001B\\", out.sent.toString())
+    }
 }
