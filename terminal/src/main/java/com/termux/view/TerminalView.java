@@ -776,6 +776,11 @@ public final class TerminalView extends View {
         } else if (event.getAction() == KeyEvent.ACTION_MULTIPLE && keyCode == KeyEvent.KEYCODE_UNKNOWN) {
             mTermSession.write(event.getCharacters());
             return true;
+        } else if (KeyEvent.isModifierKey(keyCode) || keyCode == KeyEvent.KEYCODE_CAPS_LOCK || keyCode == KeyEvent.KEYCODE_SCROLL_LOCK) {
+            // Automa: a modifier or lock key alone gives no input. It must not use up a one-shot Ctrl or Alt of the
+            // extra keys below, else the next real key came without it (KM-Q-note-5). The result is the same as before:
+            // no code and no character, so false.
+            return false;
         }
 
         final int metaState = event.getMetaState();
