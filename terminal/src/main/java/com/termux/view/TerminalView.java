@@ -604,7 +604,9 @@ public final class TerminalView extends View {
                 return true;
             } else if (event.isButtonPressed(MotionEvent.BUTTON_TERTIARY)) {
                 ClipboardManager clipboardManager = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
-                ClipData clipData = clipboardManager.getPrimaryClip();
+                // Automa: read and paste the clip once, on the press, as for the context menu above. Each move with the
+                // button held read the clip and pasted it again (KM-P-03).
+                ClipData clipData = action == MotionEvent.ACTION_DOWN ? clipboardManager.getPrimaryClip() : null;
                 if (clipData != null) {
                     ClipData.Item clipItem = clipData.getItemAt(0);
                     if (clipItem != null) {
