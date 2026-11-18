@@ -48,7 +48,7 @@ class HomeProvider : DocumentsProvider() {
         val cursor = MatrixCursor(projection ?: DOCUMENT_COLUMNS)
         val root = home
         file(parentId).listFiles().orEmpty()
-            .filter { it.canonicalPath == it.path && inside(root, it) }
+            .filter { it.canonicalPath == it.path && inside(root, it) && "$parentId/${it.name}" !in LOGINS }
             .sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
             .forEach { row(cursor, "$parentId/${it.name}", it) }
         return cursor
@@ -67,6 +67,7 @@ class HomeProvider : DocumentsProvider() {
         var name = base
         var n = 1
         while (File(parent, name).exists()) name = "$base (${n++})"
+        if ("$parentId/$name" in LOGINS) throw FileNotFoundException("Cannot create $name")
         val created = File(parent, name)
         val ok = if (mimeType == Document.MIME_TYPE_DIR) created.mkdir() else created.createNewFile()
         if (!ok) throw FileNotFoundException("Cannot create $name")
@@ -92,7 +93,7 @@ class HomeProvider : DocumentsProvider() {
      * parts (review SEC-1). No symbolic link in the path: a link resolves at each access, so a granted folder that
      * later becomes a link (guest code, or a `git pull` that changes `docs/` into `docs -> ../../.codex`) would give
      * the app that has the grant another part of home. Nothing while the app lock is on, also for grants from before
-     * the lock (SEC-2).
+     * the lock (SEC-2). Not the login files in [LOGINS].
      */
     private fun file(id: String): File {
         if (Prefs.lockOn(requireContext())) throw FileNotFoundException("Automa is locked")
@@ -100,6 +101,7 @@ class HomeProvider : DocumentsProvider() {
         if (id != ROOT && id.removePrefix("$ROOT/").split('/').any { it.isEmpty() || it == "." || it == ".." }) {
             throw FileNotFoundException("Unknown document")
         }
+        if (id in LOGINS) throw FileNotFoundException("Unknown document")
         val root = home
         val file = File(root, id.removePrefix(ROOT).trimStart('/'))
         if (file.canonicalPath != file.path || !file.exists()) throw FileNotFoundException("Unknown document")
@@ -132,6 +134,13 @@ class HomeProvider : DocumentsProvider() {
 
     private companion object {
         const val ROOT = "home"
+
+        /**
+         * The login files of Claude Code, Codex, opencode and gh. Another app does not get them, also with a grant on
+         * all of home (review DS-L-28).
+         */
+        val LOGINS = listOf(".claude/.credentials.json", ".codex/auth.json", ".local/share/opencode/auth.json", ".config/gh/hosts.yml")
+            .mapTo(HashSet()) { "$ROOT/$it" }
         val TEXT = setOf("md", "kt", "kts", "ts", "tsx", "js", "json", "yml", "yaml", "toml", "sh", "py", "rs", "go", "log", "diff", "patch")
         val ROOT_COLUMNS = arrayOf(
             Root.COLUMN_ROOT_ID, Root.COLUMN_DOCUMENT_ID, Root.COLUMN_TITLE, Root.COLUMN_SUMMARY, Root.COLUMN_FLAGS,
