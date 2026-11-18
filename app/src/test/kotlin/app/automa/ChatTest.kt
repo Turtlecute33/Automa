@@ -293,6 +293,24 @@ class ChatTest {
     }
 
     @Test
+    fun opencodePlanCardOnlyAfterACompleteTurn() = runBlocking {
+        for ((reason, card) in listOf("cancelled" to false, "max_tokens" to false, "end_turn" to true)) {
+            synchronized(sent) { sent.clear() }
+            val d = OpencodeDriver(dir, FakeGuest()).wired()
+            d.feed("""{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"current_mode_update","currentModeId":"plan"}}}""")
+            val sending = launch(kotlinx.coroutines.Dispatchers.Default) { d.send("Plan the fix") }
+            while (synchronized(sent) { sent.none { it.optString("method") == "session/prompt" } }) kotlinx.coroutines.delay(10)
+            val prompt = synchronized(sent) { sent.first { it.optString("method") == "session/prompt" } }
+            d.feed(
+                """{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"agent_message_chunk","messageId":"m","content":{"type":"text","text":"1. Change a.kt"}}}}""",
+                """{"jsonrpc":"2.0","id":${prompt.getLong("id")},"result":{"stopReason":"$reason"}}""",
+            )
+            sending.join()
+            assertEquals(card, d.state.value.asks.any { it is Ask.Plan }, reason)
+        }
+    }
+
+    @Test
     fun cleanRemovesEscapesAndShowsFormatCharacters() {
         assertEquals("red text\tok\n", clean("\u001B[31mred\u001B[0m text\tok\n\u0007"))
         assertEquals("title", clean("\u001B]0;evil\u0007title"))

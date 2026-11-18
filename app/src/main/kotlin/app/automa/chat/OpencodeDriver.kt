@@ -264,13 +264,16 @@ class OpencodeDriver(dir: String, @Suppress("unused") private val guest: Guest) 
                 "session/prompt",
                 JSONObject().put("sessionId", session).put("prompt", JSONArray().put(JSONObject().put("type", "text").put("text", text))),
             )
-            when (r.str("stopReason")) {
+            val reason = r.str("stopReason")
+            when (reason) {
                 "cancelled" -> note("Stopped.")
                 "max_tokens" -> note("The answer reached the length limit.", error = true)
                 "refusal" -> note("The model refused to answer.", error = true)
             }
             turns++
-            if (flow.value.mode == "plan" && last.isNotBlank()) {
+            // Only a plan that came to its end: after a Stop, a Reject, the length limit or a refusal, the text is not
+            // a full plan (Codex also asks only after a completed turn).
+            if (flow.value.mode == "plan" && last.isNotBlank() && reason !in STOPPED) {
                 ask(
                     Ask.Plan(
                         PLAN, last,
@@ -315,6 +318,7 @@ class OpencodeDriver(dir: String, @Suppress("unused") private val guest: Guest) 
     private companion object {
         const val PLAN = "plan"
         const val OUTPUT = 20_000
+        val STOPPED = setOf("cancelled", "max_tokens", "refusal")
         const val NO_MODEL = "opencode has no model. Add TFF_API_KEY in Settings → API keys, then start a new chat."
     }
 }
