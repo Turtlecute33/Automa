@@ -4,6 +4,7 @@ import com.termux.terminal.TerminalBuffer
 import com.termux.terminal.TerminalColors
 import com.termux.terminal.TerminalEmulator
 import com.termux.terminal.TerminalOutput
+import com.termux.terminal.TerminalRow
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
 import com.termux.terminal.TextStyle
@@ -174,5 +175,20 @@ class TerminalTest {
         big.append(more, more.size)
         assertEquals(3000 - 24, big.screen.activeTranscriptRows)
         assertEquals("x", big.screen.getSelectedText(0, -1, 99, -1))
+    }
+
+    @Test
+    fun aClearedRowGivesBackItsLargeText() {
+        // KM-Q-01(b): combining marks make the text of a row grow. A clear kept the large array for the life of the row.
+        val row = TerminalRow(80, 0)
+        val size = row.mText.size
+        for (col in 0 until 80) {
+            row.setChar(col, 'e'.code, 0)
+            repeat(15) { row.setChar(col, 0x301, 0) }
+        }
+        assertTrue(row.mText.size > size)
+        row.clear(0)
+        assertEquals(size, row.mText.size)
+        assertEquals(80, row.spaceUsed)
     }
 }

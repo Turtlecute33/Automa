@@ -144,6 +144,9 @@ public final class TerminalRow {
     }
 
     public void clear(long style) {
+        // Automa: give back a text array that grew (combining marks). A blank row needs one char for each column, and
+        // the large array stayed for the life of the row (KM-Q-01).
+        if (mText.length > SPARE_CAPACITY_FACTOR * mColumns) mText = new char[(int) (SPARE_CAPACITY_FACTOR * mColumns)];
         Arrays.fill(mText, ' ');
         Arrays.fill(mStyle, style);
         mSpaceUsed = (short) mColumns;
