@@ -2497,7 +2497,9 @@ public final class TerminalEmulator {
     }
 
     private void setCursorCol(int col) {
-        mCursorCol = col;
+        // Automa: on the screen, as in setCursorRowCol. A backspace in column 0 left of a DECSLRM left margin gave -1, and
+        // the next ESC H, ICH, DCH, ECH or EL threw on the main thread.
+        mCursorCol = Math.max(0, Math.min(col, mColumns - 1));
         mAboutToAutoWrap = false;
     }
 

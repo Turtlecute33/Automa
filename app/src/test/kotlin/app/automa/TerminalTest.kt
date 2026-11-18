@@ -62,4 +62,13 @@ class TerminalTest {
         assertEquals(TerminalColors.COLOR_SCHEME.mDefaultColors[1], term.mColors.mCurrentColors[1])
         assertEquals(TerminalColors.COLOR_SCHEME.mDefaultColors[2], term.mColors.mCurrentColors[2])
     }
+
+    @Test
+    fun backspaceLeftOfTheLeftMarginStaysOnTheScreen() {
+        for (margins in listOf("2;4", "10;20")) {
+            feed("\u001Bc\u001B[?69h\u001B[${margins}s\b")
+            assertEquals(0, term.cursorCol)
+            feed("\u001BH\u001B[P\u001B[@\u001B[X\u001B[K")
+        }
+    }
 }
