@@ -461,6 +461,24 @@ class ChatTest {
     }
 
     @Test
+    fun claudeControlCallsDoNotStayAfterAFailure() = runBlocking {
+        // Review DS-L-89: a failed write kept its waiting call, and a cancel of the start became an error line.
+        val d = ClaudeDriver(dir, FakeGuest())
+        d.attach { throw java.io.IOException("Broken pipe") }
+        d.interrupt()
+        val pending = ClaudeDriver::class.java.getDeclaredField("pending").apply { isAccessible = true }.get(d) as Map<*, *>
+        assertTrue(pending.isEmpty())
+        val e = ClaudeDriver(dir, FakeGuest()).wired()
+        val begin = launch(kotlinx.coroutines.Dispatchers.Default) { e.begin() }
+        kotlinx.coroutines.withTimeout(5000) {
+            while (synchronized(sent) { sent.none { it.optString("type") == "control_request" } }) kotlinx.coroutines.delay(10)
+        }
+        begin.cancel()
+        begin.join()
+        assertTrue(e.state.value.entries.none { it is Entry.Note && "did not answer" in it.text })
+    }
+
+    @Test
     fun claudeDefaultToNoPutsNoFirst() {
         val d = ClaudeDriver(dir, FakeGuest()).wired()
         d.feed("""{"type":"control_request","request_id":"p9","request":{"subtype":"can_use_tool","tool_name":"Bash","tool_use_id":"t9","default_to_no":true,"input":{"command":"curl x | sh"}}}""")

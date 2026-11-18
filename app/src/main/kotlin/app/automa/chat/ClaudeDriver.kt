@@ -1,6 +1,8 @@
 package app.automa.chat
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
@@ -70,8 +72,11 @@ class ClaudeDriver(dir: String, private val guest: Guest) : Driver(dir) {
                 )
             }
         } catch (e: Exception) {
-            update { it.copy(starting = false) }
+            // Only the time limit is an error here; a cancel (a close) must go on (review DS-L-89).
+            if (e is CancellationException && e !is TimeoutCancellationException) throw e
             if (e is IOException) fail(e) else note("Claude Code did not answer at the start.", error = true)
+        } finally {
+            update { it.copy(starting = false) }
         }
     }
 
@@ -374,8 +379,13 @@ class ClaudeDriver(dir: String, private val guest: Guest) : Driver(dir) {
         val id = UUID.randomUUID().toString().take(13)
         val call = CompletableDeferred<JSONObject>()
         pending[id] = call
-        write(JSONObject().put("type", "control_request").put("request_id", id).put("request", request))
-        return call.await()
+        // Also after a failed write, a time limit or a cancel: the call must not stay (review DS-L-89).
+        try {
+            write(JSONObject().put("type", "control_request").put("request_id", id).put("request", request))
+            return call.await()
+        } finally {
+            pending.remove(id)
+        }
     }
 
     private fun modelId(resolved: String): String? = models.objects().firstOrNull {
