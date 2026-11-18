@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import app.automa.chat.Answer
 import app.automa.chat.Ask
 import app.automa.chat.Choice
+import app.automa.chat.Diff
 import app.automa.chat.Question
 import app.automa.ui.PrivateTextInput
 
@@ -80,7 +81,9 @@ private fun PermissionBody(ask: Ask.Permission, onAnswer: (Answer) -> Unit) {
     Text(ask.title, style = MaterialTheme.typography.titleMedium)
     ask.message?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     ask.detail?.takeIf { it.isNotBlank() }?.let { CodeBlock(it, wrap = true) }
-    ask.diff?.let { DiffView(it, maxLines = 80) }
+    // For an Edit or a Codex file change the diff is the only view of the change: all the kept lines, the card scrolls
+    // (review KM-M-26, DS-L-58).
+    ask.diff?.let { DiffView(it, maxLines = Diff.MAX_LINES) }
     if (ask.feedback) NoteField(note, { note = it }, "Note for the agent if you deny (optional)")
     Choices(ask.choices, ask.caution) { onAnswer(Answer.Pick(it, if (it.kind == Choice.Kind.Deny) note.trim() else "")) }
 }
