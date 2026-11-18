@@ -52,6 +52,15 @@ final class ByteQueue {
     }
 
     /**
+     * Automa: writes all the bytes when they fit now, else none. For the main thread, which must never wait for the
+     * program: when the program reads nothing, a blocking write stopped the app ("App not responding").
+     */
+    public synchronized boolean offer(byte[] buffer, int offset, int length) {
+        if (!mOpen || length > mBuffer.length - mStoredBytes) return false;
+        return write(buffer, offset, length);
+    }
+
+    /**
      * Attempt to write the specified portion of the provided buffer to the queue.
      * <p/>
      * Returns whether the output was totally written, false if it was closed before.

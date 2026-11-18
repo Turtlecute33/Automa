@@ -46,7 +46,7 @@ public final class TerminalSession extends TerminalOutput {
      * A queue written to from the main thread due to user interaction, and read by another thread which forwards by
      * writing to the {@link #mTerminalFileDescriptor}.
      */
-    final ByteQueue mTerminalToProcessIOQueue = new ByteQueue(4096);
+    final ByteQueue mTerminalToProcessIOQueue = new ByteQueue(1 << 20); // Automa: room for a large paste, see write().
     /** Buffer to write translate code points into utf8 before writing to mTerminalToProcessIOQueue */
     private final byte[] mUtf8InputBuffer = new byte[5];
 
@@ -176,7 +176,9 @@ public final class TerminalSession extends TerminalOutput {
     @Override
     public void write(byte[] data, int offset, int count) {
         // Automa: nothing to write for an empty paste. ByteQueue throws for a length of 0, on the main thread.
-        if (mShellPid > 0 && count > 0) mTerminalToProcessIOQueue.write(data, offset, count);
+        // No wait: this is the main thread (keys, paste, replies to queries). When the program reads nothing and the
+        // queue is full, the bytes are dropped.
+        if (mShellPid > 0 && count > 0) mTerminalToProcessIOQueue.offer(data, offset, count);
     }
 
     /** Write the Unicode code point to the terminal encoded in UTF-8. */

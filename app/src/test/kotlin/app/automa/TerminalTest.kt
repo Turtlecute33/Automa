@@ -8,7 +8,9 @@ import com.termux.terminal.TerminalSessionClient
 import com.termux.terminal.TextStyle
 import java.io.ByteArrayOutputStream
 import kotlin.test.Test
+import kotlin.concurrent.thread
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -106,5 +108,19 @@ class TerminalTest {
     fun anEmptyWriteIsIgnored() {
         // An empty paste: output can arm it with "ESC ] 52 ; c ; BEL", and the paste removes an ESC-only clip.
         running().write(ByteArray(0), 0, 0)
+    }
+
+    @Test
+    fun aWriteNeverWaitsForTheProgram() {
+        // The program reads nothing (a hung program, or a pasted text while "sleep" runs). The main thread waited for
+        // ever when the 4 KB queue was full: "App not responding", and Ctrl-C could not go out.
+        val session = running()
+        val writer = thread(isDaemon = true) {
+            session.write(ByteArray(64 shl 10), 0, 64 shl 10)
+            session.write(ByteArray(4 shl 20), 0, 4 shl 20)
+            session.write(ByteArray(1), 0, 1)
+        }
+        writer.join(5000)
+        assertFalse(writer.isAlive)
     }
 }
