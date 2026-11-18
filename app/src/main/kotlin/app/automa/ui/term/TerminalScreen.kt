@@ -181,7 +181,8 @@ fun TerminalScreen(id: Int, nav: Navigator) {
             tabs = tabs,
             current = id,
             onDismiss = { sheet = false },
-            onHome = { sheet = false; nav.back() },
+            // To Home, also when the terminal opened from a chat (the chat is then between them).
+            onHome = { sheet = false; nav.go(Route.Home) },
             onShare = { sheet = false; view?.let(::share) },
             onClose = { sheet = false; app.sessions.close(id) },
             onSwitch = { other ->
