@@ -43,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -64,6 +65,7 @@ import app.automa.ui.nav.Navigator
 import app.automa.ui.nav.Route
 import com.termux.view.TerminalView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
@@ -136,15 +138,18 @@ fun TerminalScreen(id: Int, nav: Navigator) {
                 ExitBar(code, onClose = { app.sessions.close(id) }, modifier = Modifier.align(Alignment.BottomCenter))
             }
             link?.let { url ->
-                LinkBar(
-                    host = url.toUri().host.orEmpty(),
-                    onOpen = {
-                        app.links.clear()
-                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
-                    },
-                    onDismiss = app.links::clear,
-                    modifier = Modifier.align(Alignment.TopCenter),
-                )
+                // A new link gets a new bar: a tap that started on the old bar does not open the new link.
+                key(url) {
+                    LinkBar(
+                        host = url.toUri().host.orEmpty(),
+                        onOpen = {
+                            app.links.clear()
+                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
+                        },
+                        onDismiss = app.links::clear,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                    )
+                }
             }
         }
         ExtraKeys(
@@ -198,6 +203,8 @@ fun TerminalScreen(id: Int, nav: Navigator) {
 /** Green while the program runs, red after an error exit. */
 private fun dot(tab: Tab) = Color(if (tab.exit == null) Look.ANSI[2] else Look.ANSI[1])
 
+private const val ARM_MS = 400L
+
 private fun sp(view: TerminalView, size: Int): Int =
     TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, size.toFloat(), view.resources.displayMetrics).toInt()
 
@@ -231,10 +238,16 @@ private fun ExitBar(code: Int, onClose: () -> Unit, modifier: Modifier) {
 
 /**
  * A program asks to open a link (DESIGN §5). The host is shown, so that the user can check it; the browser opens only
- * after a tap.
+ * after a tap. A guest program can change the link while the bar shows: Open is not active for a short time after
+ * each change, so that a tap opens only a host that the user could read (review DS-L-15, KM-P-02; as AskCard).
  */
 @Composable
 private fun LinkBar(host: String, onOpen: () -> Unit, onDismiss: () -> Unit, modifier: Modifier) {
+    var armed by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(ARM_MS)
+        armed = true
+    }
     Surface(
         modifier = modifier.padding(12.dp),
         shape = RoundedCornerShape(20.dp),
@@ -247,7 +260,7 @@ private fun LinkBar(host: String, onOpen: () -> Unit, onDismiss: () -> Unit, mod
                 Text(host, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
             TextButton(onClick = onDismiss) { Text("Cancel") }
-            FilledTonalButton(onClick = onOpen) { Text("Open") }
+            FilledTonalButton(onClick = onOpen, enabled = armed) { Text("Open") }
         }
     }
 }
