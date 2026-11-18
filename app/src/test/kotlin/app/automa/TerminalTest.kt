@@ -191,4 +191,17 @@ class TerminalTest {
         assertEquals(size, row.mText.size)
         assertEquals(80, row.spaceUsed)
     }
+
+    @Test
+    fun anApcWithNoEndDoesNotHideTheOutput() {
+        // "ESC _" (APC) with no end hid all later output. CAN and SUB end it. An ESC that does not start the end (ESC \)
+        // also ends it and starts its own sequence, as in xterm: here "ESC [ 1 m" (bold).
+        feed("\u001B_Gjunk\u0018A")
+        feed("\u001B_Gjunk\u001AB")
+        feed("\u001B_Gjunk\u001B[1mC")
+        // A complete APC (kitty graphics) shows nothing.
+        feed("\u001B_Ga=T;QUJD\u001B\\D")
+        assertEquals("ABCD", term.screen.getSelectedText(0, 0, 79, 0))
+        assertTrue(TextStyle.decodeEffect(term.screen.getStyleAt(0, 2)) and TextStyle.CHARACTER_ATTRIBUTE_BOLD != 0)
+    }
 }

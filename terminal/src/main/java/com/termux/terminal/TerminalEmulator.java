@@ -566,7 +566,11 @@ public final class TerminalEmulator {
 
     public void processCodePoint(int b) {
         // The Application Program-Control (APC) string might be arbitrary non-printable characters, so handle that early.
-        if (mEscapeState == ESC_APC) {
+        // Automa: CAN and SUB end the APC string, as in xterm and Varco. An APC with no end hid all later output.
+        if ((mEscapeState == ESC_APC || mEscapeState == ESC_APC_ESCAPE) && (b == 24 || b == 26)) {
+            finishSequence();
+            return;
+        } else if (mEscapeState == ESC_APC) {
             doApc(b);
             return;
         } else if (mEscapeState == ESC_APC_ESCAPE) {
@@ -1056,9 +1060,10 @@ public final class TerminalEmulator {
             // A String Terminator (ST), ending the APC escape sequence.
             finishSequence();
         } else {
-            // The Escape character was not the start of a String Terminator (ST),
-            // but instead just data inside of the APC escape sequence.
-            continueSequence(ESC_APC);
+            // Automa: the ESC ends the APC string and starts its own escape sequence, as in xterm. Upstream kept it as
+            // data, so after an APC with no end, all later output (a prompt, "reset") stayed hidden.
+            startEscapeSequence();
+            processCodePoint(b);
         }
     }
 
