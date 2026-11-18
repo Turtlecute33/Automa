@@ -480,6 +480,11 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
     private suspend fun stopTurn() = rpc.call("turn/interrupt", JSONObject().put("threadId", thread).put("turnId", turn))
 
     override suspend fun select(setting: Setting, id: String) = act {
+        // Plan mode goes in collaborationMode, which needs a model; with no model it would not go (review DS-L-93).
+        if (setting == Setting.Mode && id == "plan" && flow.value.model == null) {
+            note("Plan mode needs a model, and Codex gave no model.", error = true)
+            return@act
+        }
         update {
             when (setting) {
                 Setting.Model -> it.copy(model = id, efforts = efforts(id), effort = it.effort?.takeIf { e -> efforts(id).any { o -> o.id == e } } ?: default(id))

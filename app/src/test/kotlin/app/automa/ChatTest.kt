@@ -252,13 +252,25 @@ class ChatTest {
     @Test
     fun codexPlanEndsWithAnApprovalCard() {
         val d = CodexDriver(dir, FakeGuest()).wired()
-        runBlocking { d.select(app.automa.chat.Setting.Mode, "plan") }
+        runBlocking {
+            d.select(app.automa.chat.Setting.Model, "gpt-test")
+            d.select(app.automa.chat.Setting.Mode, "plan")
+        }
         d.feed(
             """{"method":"item/completed","params":{"item":{"type":"plan","id":"P","text":"1. Add a test"}}}""",
             """{"method":"turn/completed","params":{"turn":{"id":"U","status":"completed"}}}""",
         )
         val ask = assertIs<Ask.Plan>(d.state.value.asks.single())
         assertEquals("1. Add a test", ask.plan)
+    }
+
+    @Test
+    fun codexPlanModeNeedsAModel() = runBlocking {
+        // Plan mode goes in collaborationMode, which needs a model: with no model it was not sent (review DS-L-93).
+        val d = CodexDriver(dir, FakeGuest()).wired()
+        d.select(app.automa.chat.Setting.Mode, "plan")
+        assertTrue(d.state.value.mode != "plan")
+        assertTrue(d.state.value.entries.any { it is Entry.Note && it.error })
     }
 
     @Test
