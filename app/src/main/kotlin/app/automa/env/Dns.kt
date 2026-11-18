@@ -19,7 +19,9 @@ object Dns {
         val private = host?.let { runCatching { InetAddress.getAllByName(it).toList() }.getOrNull() }.orEmpty()
         val text = conf(private, network = link?.dnsServers.orEmpty())
         if (file.exists() && runCatching { file.readText() }.getOrNull() == text) return
-        file.parentFile?.mkdirs()
+        // No guest yet (a GitHub login before the setup): make no folder. A new rootfs/etc made the setup skip the
+        // Alpine step, and each setup after that failed until a reset (review SEC-7).
+        if (file.parentFile?.isDirectory != true) return
         // The guest can make it a symbolic link; replace the link, do not write through it.
         file.delete()
         file.writeText(text)
