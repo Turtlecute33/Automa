@@ -1166,7 +1166,7 @@ public final class TerminalEmulator {
                 switch (getArg0(-1)) {
                     case 6:
                         // Extended Cursor Position (DECXCPR - http://www.vt100.net/docs/vt510-rm/DECXCPR). Page=1.
-                        mSession.write(String.format(Locale.US, "\033[?%d;%d;1R", mCursorRow + 1, mCursorCol + 1));
+                        mSession.write(String.format(Locale.US, "\033[?%d;%d;1R", mCursorRow - originRow() + 1, mCursorCol - originCol() + 1));
                         break;
                     default:
                         finishSequence();
@@ -1225,7 +1225,8 @@ public final class TerminalEmulator {
             case 5: // Reverse video. No action.
                 break;
             case 6: // Set: Origin Mode. Reset: Normal Cursor Mode. Ansi name: DECOM.
-                if (setting) setCursorPosition(0, 0);
+                // Automa: home also on reset, as in xterm and the VT510 manual (KM-N-09).
+                setCursorPosition(0, 0);
                 break;
             case 7: // Wrap-around bit, not specific action.
             case 8: // Auto-repeat Keys (DECARM). Do not implement.
@@ -1575,10 +1576,13 @@ public final class TerminalEmulator {
             }
             break;
             case 'A': // "CSI${n}A" - Cursor up (CUU) ${n} rows.
-                setCursorRow(Math.max(0, mCursorRow - getArg0(1)));
+                // Automa: stop at the top margin, as in xterm and the VT510 manual. Above the margin, row 0 is the limit.
+                // Upstream went to row 0 also from inside the region (KM-N-09).
+                setCursorRow(Math.max(mCursorRow < mTopMargin ? 0 : mTopMargin, mCursorRow - getArg0(1)));
                 break;
             case 'B': // "CSI${n}B" - Cursor down (CUD) ${n} rows.
-                setCursorRow(Math.min(mRows - 1, mCursorRow + getArg0(1)));
+                // Automa: stop at the bottom margin, as for CUU (KM-N-09).
+                setCursorRow(Math.min(mCursorRow >= mBottomMargin ? mRows - 1 : mBottomMargin - 1, mCursorRow + getArg0(1)));
                 break;
             case 'C': // "CSI${n}C" - Cursor forward (CUF).
             case 'a': // "CSI${n}a" - Horizontal position relative (HPR). From ISO-6428/ECMA-48.
@@ -1588,10 +1592,12 @@ public final class TerminalEmulator {
                 setCursorCol(Math.max(mLeftMargin, mCursorCol - getArg0(1)));
                 break;
             case 'E': // "CSI{n}E - Cursor Next Line (CNL). From ISO-6428/ECMA-48.
-                setCursorPosition(0, mCursorRow + getArg0(1));
+                // Automa: mCursorRow is a screen row, and setCursorPosition() adds the origin, so take it away first.
+                // With DECOM the margins were added two times (KM-N-09). The same for CPL, VPA, VPR and HPA.
+                setCursorPosition(0, mCursorRow - originRow() + getArg0(1));
                 break;
             case 'F': // "CSI{n}F - Cursor Previous Line (CPL). From ISO-6428/ECMA-48.
-                setCursorPosition(0, mCursorRow - getArg0(1));
+                setCursorPosition(0, mCursorRow - originRow() - getArg0(1));
                 break;
             case 'G': // "CSI${n}G" - Cursor horizontal absolute (CHA) to column ${n}.
                 setCursorCol(Math.min(Math.max(1, getArg0(1)), mColumns) - 1);
@@ -1745,10 +1751,11 @@ public final class TerminalEmulator {
                 if (getArg0(0) == 0) mSession.write("\033[?64;1;2;6;9;15;18;21;22c");
                 break;
             case 'd': // ESC [ Pn d - Vert Position Absolute
-                setCursorRow(Math.min(Math.max(1, getArg0(1)), mRows) - 1);
+                // Automa: relative to the origin with DECOM, as CUP (KM-N-09).
+                setCursorPosition(mCursorCol - originCol(), getArg0(1) - 1);
                 break;
             case 'e': // Vertical Position Relative (VPR). From ISO-6429 (ECMA-48).
-                setCursorPosition(mCursorCol, mCursorRow + getArg0(1));
+                setCursorPosition(mCursorCol - originCol(), mCursorRow - originRow() + getArg0(1));
                 break;
             // case 'f': "${CSI}${ROW};${COLUMN}f" - Horizontal and Vertical Position (HVP). Grouped with case 'H'.
             case 'g': // Clear tab stop
@@ -1786,7 +1793,8 @@ public final class TerminalEmulator {
                     case 6: // Cursor position report (CPR):
                         // Answer is ESC [ y ; x R, where x,y is
                         // the cursor location.
-                        mSession.write(String.format(Locale.US, "\033[%d;%dR", mCursorRow + 1, mCursorCol + 1));
+                        // Automa: relative to the origin with DECOM, as in xterm (KM-N-09). The same for DECXCPR.
+                        mSession.write(String.format(Locale.US, "\033[%d;%dR", mCursorRow - originRow() + 1, mCursorCol - originCol() + 1));
                         break;
                     default:
                         break;
@@ -2546,7 +2554,18 @@ public final class TerminalEmulator {
 
     /** Set the cursor mode, but limit it to margins if {@link #DECSET_BIT_ORIGIN_MODE} is enabled. */
     private void setCursorColRespectingOriginMode(int col) {
-        setCursorPosition(col, mCursorRow);
+        // Automa: the row stays. setCursorPosition() adds the origin, so take it away first (KM-N-09).
+        setCursorPosition(col, mCursorRow - originRow());
+    }
+
+    /** Automa: the first row of positions with {@link #DECSET_BIT_ORIGIN_MODE} (DECOM), else 0 (KM-N-09). */
+    private int originRow() {
+        return isDecsetInternalBitSet(DECSET_BIT_ORIGIN_MODE) ? mTopMargin : 0;
+    }
+
+    /** Automa: the first column of positions with {@link #DECSET_BIT_ORIGIN_MODE} (DECOM), else 0 (KM-N-09). */
+    private int originCol() {
+        return isDecsetInternalBitSet(DECSET_BIT_ORIGIN_MODE) ? mLeftMargin : 0;
     }
 
     /** TODO: Better name, distinguished from {@link #setCursorPosition(int, int)} by not regarding origin mode. */

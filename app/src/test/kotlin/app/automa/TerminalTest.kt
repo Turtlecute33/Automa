@@ -244,4 +244,45 @@ class TerminalTest {
         feed("\u001B[?69h\u001B[5;10s\u001B[3;7H\u001B[10;2s\u001B[90;99s\u001B[7;7s")
         assertEquals(listOf(4, 10, 2, 6), listOf(field("mLeftMargin"), field("mRightMargin"), term.cursorRow, term.cursorCol))
     }
+
+    private fun pos() = listOf(term.cursorRow, term.cursorCol)
+
+    @Test
+    fun originModeIsAddedOnceForEachCursorMove() {
+        // KM-N-09: with DECOM, VPR, CNL, CPL and HPA added the margins two times. VPA, CPR and DECXCPR did not use them,
+        // and DECRST 6 did not move the cursor home. Region: rows 5-20 and columns 10-70 (1-based); home is (4, 9).
+        feed("\u001B[5;20r\u001B[?69h\u001B[10;70s\u001B[?6h")
+        feed("\u001B[e")
+        assertEquals(listOf(5, 9), pos())
+        feed("\u001B[2;3H\u001B[E")
+        assertEquals(listOf(6, 9), pos())
+        feed("\u001B[F")
+        assertEquals(listOf(5, 9), pos())
+        feed("\u001B[4`")
+        assertEquals(listOf(5, 12), pos())
+        feed("\u001B[3d")
+        assertEquals(listOf(6, 12), pos())
+        feed("\u001B[6n\u001B[?6n")
+        assertEquals("\u001B[3;4R\u001B[?3;4;1R", out.sent.toString())
+        feed("\u001B[?6l")
+        assertEquals(listOf(0, 0), pos())
+    }
+
+    @Test
+    fun cursorUpAndDownStopAtTheMargins() {
+        // KM-N-09: as in xterm (and the VT510 manual), CUU and CUD stop at the margin, and go to the screen edge only
+        // from outside the region on that side. Region: rows 5-10 (1-based).
+        feed("\u001B[5;10r\u001B[7;1H\u001B[99A")
+        assertEquals(4, term.cursorRow)
+        feed("\u001B[99B")
+        assertEquals(9, term.cursorRow)
+        feed("\u001B[2;1H\u001B[99A")
+        assertEquals(0, term.cursorRow)
+        feed("\u001B[2;1H\u001B[99B")
+        assertEquals(9, term.cursorRow)
+        feed("\u001B[15;1H\u001B[99B")
+        assertEquals(23, term.cursorRow)
+        feed("\u001B[15;1H\u001B[99A")
+        assertEquals(4, term.cursorRow)
+    }
 }
