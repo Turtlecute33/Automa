@@ -9,6 +9,7 @@ import app.automa.env.Env
 import app.automa.env.Procs
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
+import com.termux.terminal.TextStyle
 import com.termux.view.TerminalView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -130,7 +131,11 @@ class Sessions(private val context: Context, private val env: Env) : TerminalSes
     }
 
     override fun onColorsChanged(session: TerminalSession) {
-        view?.takeIf { it.currentSession === session }?.invalidate()
+        val shown = view?.takeIf { it.currentSession === session } ?: return
+        // The renderer does not paint the cells with the default background: the background colour of a program
+        // (OSC 11) must also go to the view (review KM-N-19).
+        session.emulator?.let { shown.setBackgroundColor(it.mColors.mCurrentColors[TextStyle.COLOR_INDEX_BACKGROUND]) }
+        shown.invalidate()
     }
 
     override fun onTitleChanged(changedSession: TerminalSession) = Unit
