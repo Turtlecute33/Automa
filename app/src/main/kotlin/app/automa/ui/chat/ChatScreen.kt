@@ -64,6 +64,7 @@ import app.automa.chat.ChatState
 import app.automa.chat.ChatTab
 import app.automa.chat.Option
 import app.automa.chat.Setting
+import app.automa.chat.clean
 import app.automa.env.Agent
 import app.automa.ui.Icons
 import app.automa.ui.PrivateTextInput
@@ -204,8 +205,8 @@ private fun ChatBar(tab: ChatTab, state: ChatState, onBack: () -> Unit, onTermin
     )
 }
 
-/** The label of the option with [id], or the id itself. */
-private fun label(id: String?, options: List<Option>) = id?.let { options.firstOrNull { o -> o.id == id }?.label ?: it }
+/** The label of the option with [id], or the id itself. The id comes from the agent: cleaned for the screen (review DS-L-86). */
+private fun label(id: String?, options: List<Option>) = id?.let { options.firstOrNull { o -> o.id == id }?.label ?: clean(it) }
 
 @Composable
 private fun Working(text: String = "Working…") {
@@ -266,7 +267,8 @@ private fun Commands(text: String, commands: List<Option>, onPick: (String) -> U
     Column(Modifier.fillMaxWidth()) {
         matches.forEach { command ->
             ListItem(
-                headlineContent = { Text("/${command.id}", fontFamily = Mono) },
+                // Cleaned for the screen only; the composer gets the id as the agent gave it (review DS-L-86).
+                headlineContent = { Text("/${clean(command.id)}", fontFamily = Mono) },
                 supportingContent = command.description.takeIf { it.isNotBlank() }?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 modifier = Modifier.clickable { onPick("/${command.id} ") },

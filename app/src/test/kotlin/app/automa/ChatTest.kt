@@ -422,6 +422,12 @@ class ChatTest {
     }
 
     @Test
+    fun effortLabelsAreClean() {
+        assertEquals("<U+202E>hgih", app.automa.chat.effortLabel("\u202Ehgih"))
+        assertEquals("High", app.automa.chat.effortLabel("high"))
+    }
+
+    @Test
     fun longCommandsShowTheCut() {
         val long = "echo safe\n".repeat(3000)
         val shown = app.automa.chat.Tools.claudeInput("Bash", JSONObject().put("command", long))!!

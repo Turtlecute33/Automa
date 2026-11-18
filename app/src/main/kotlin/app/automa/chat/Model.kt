@@ -154,8 +154,8 @@ fun grow(old: String, delta: String): String = (old + delta).let { if (it.length
 /** [text] cut to [max] characters, with a sign when it is cut (review SEC-17). */
 fun cut(text: String, max: Int): String = if (text.length <= max) text else text.take(max) + "\n… ${text.length - max} more characters"
 
-/** The label of an effort level ("xhigh" is "Extra high"). */
-fun effortLabel(id: String) = if (id == "xhigh") "Extra high" else id.replaceFirstChar(Char::uppercase)
+/** The label of an effort level ("xhigh" is "Extra high"). The id comes from the agent (review DS-L-86). */
+fun effortLabel(id: String) = if (id == "xhigh") "Extra high" else clean(id).replaceFirstChar(Char::uppercase)
 
 /** A model, mode or effort that the user can select. */
 @Immutable
