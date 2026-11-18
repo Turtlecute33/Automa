@@ -6,6 +6,7 @@ import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 /**
  * A guest program that speaks JSON, one object for each line, on stdin and stdout (DESIGN §13). No terminal and no
@@ -43,7 +44,9 @@ class Pipe private constructor(private val process: Process, private val mark: S
      * of the tree (research F-8). Not on the main thread.
      */
     fun stop() {
-        runCatching { synchronized(this) { writer.close() } }
+        // The end of stdin on its own thread: when the agent reads nothing, a send waits in the full pipe with the lock,
+        // and the kill must still come. After the kill, the waiting write fails and the close ends.
+        thread(name = "automa-stdin-close") { runCatching { synchronized(this@Pipe) { writer.close() } } }
         if (!process.waitFor(GRACE_MS, TimeUnit.MILLISECONDS)) Procs.child(mark)?.let(Procs::kill)
         process.destroy()
     }
