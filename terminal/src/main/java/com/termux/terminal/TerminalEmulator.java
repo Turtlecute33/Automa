@@ -2119,20 +2119,17 @@ public final class TerminalEmulator {
                     mColors.reset();
                     mSession.onColorsChanged();
                 } else {
-                    int lastIndex = 0;
-                    for (int charIndex = 0; ; charIndex++) {
-                        boolean endOfInput = charIndex == textParameter.length();
-                        if (endOfInput || textParameter.charAt(charIndex) == ';') {
-                            try {
-                                int colorToReset = Integer.parseInt(textParameter.substring(lastIndex, charIndex));
+                    // Automa: an index outside the table and a part that is not a number are ignored. The old loop read
+                    // past the table or the text, and the exception on the main thread stopped the app.
+                    for (String part : textParameter.split(";")) {
+                        try {
+                            int colorToReset = Integer.parseInt(part);
+                            if (colorToReset >= 0 && colorToReset < TextStyle.NUM_INDEXED_COLORS) {
                                 mColors.reset(colorToReset);
                                 mSession.onColorsChanged();
-                                if (endOfInput) break;
-                                charIndex++;
-                                lastIndex = charIndex;
-                            } catch (NumberFormatException e) {
-                                // Ignore.
                             }
+                        } catch (NumberFormatException e) {
+                            // Ignore.
                         }
                     }
                 }
