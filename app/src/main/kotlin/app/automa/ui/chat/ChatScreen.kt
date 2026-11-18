@@ -314,8 +314,10 @@ private fun OptionSheet(setting: Setting, current: String?, options: List<Option
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
+        // The ids come from the agent: a key twice (or the key "end") makes the LazyColumn throw, and the app stops.
+        val unique = remember(options) { options.distinctBy { it.id } }
         LazyColumn {
-            items(options, key = { it.id }) { option ->
+            items(unique, key = { "option-${it.id}" }) { option ->
                 ListItem(
                     headlineContent = { Text(option.label) },
                     supportingContent = option.description.takeIf { it.isNotBlank() }?.let { { Text(it, maxLines = 2, overflow = TextOverflow.Ellipsis) } },
