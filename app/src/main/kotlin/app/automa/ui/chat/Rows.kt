@@ -117,7 +117,7 @@ private fun ToolCard(tool: Entry.Tool, modifier: Modifier) {
             if (open) {
                 tool.input?.takeIf { it.isNotBlank() }?.let {
                     Spacer(Modifier.size(8.dp))
-                    CodeBlock(it, maxLines = 40)
+                    CodeBlock(remember(it) { head(it, 40) })
                 }
                 tool.diff?.let {
                     Spacer(Modifier.size(8.dp))
@@ -125,11 +125,24 @@ private fun ToolCard(tool: Entry.Tool, modifier: Modifier) {
                 }
                 tool.output?.takeIf { it.isNotBlank() }?.let {
                     Spacer(Modifier.size(8.dp))
-                    CodeBlock(it.takeLast(OUTPUT_CHARS), maxLines = 60)
+                    // The end of an output tells the most (an error, an exit code).
+                    CodeBlock(remember(it) { tail(it.takeLast(OUTPUT_CHARS), 60) })
                 }
             }
         }
     }
+}
+
+/** The first [max] lines of [text], with a sign for the other lines (review DS-L-85). */
+internal fun head(text: String, max: Int): String {
+    val lines = text.trimEnd('\n').lines()
+    return if (lines.size <= max) text.trimEnd('\n') else lines.take(max).joinToString("\n") + "\n… ${lines.size - max} more lines"
+}
+
+/** The last [max] lines of [text], with a sign for the lines before them (review DS-L-85). */
+internal fun tail(text: String, max: Int): String {
+    val lines = text.trimEnd('\n').lines()
+    return if (lines.size <= max) text.trimEnd('\n') else "… ${lines.size - max} earlier lines\n" + lines.takeLast(max).joinToString("\n")
 }
 
 @Composable

@@ -6,7 +6,9 @@ import androidx.compose.ui.text.TextLinkStyles
 import app.automa.chat.Pipe
 import app.automa.ui.chat.Block
 import app.automa.ui.chat.Markdown
+import app.automa.ui.chat.head
 import app.automa.ui.chat.table
+import app.automa.ui.chat.tail
 import java.io.ByteArrayInputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -116,6 +118,16 @@ class MarkdownTest {
         val rows = listOf(listOf("x".repeat(29_000), "y")) + List(10_000) { listOf("", "z") }
         assertTrue(table(rows).length < 100_000)
         assertEquals("a    bb\nccc  d", table(listOf(listOf("a", "bb"), listOf("ccc", "d"))))
+    }
+
+    @Test
+    fun toolRowCutsShowASign() {
+        // The tool row showed the first 40 input lines and the first 60 output lines with no sign (review DS-L-85).
+        val text = (1..100).joinToString("\n") { "line $it" } + "\n"
+        assertEquals((1..40).joinToString("\n") { "line $it" } + "\n… 60 more lines", head(text, 40))
+        assertEquals("… 40 earlier lines\n" + (41..100).joinToString("\n") { "line $it" }, tail(text, 60))
+        assertEquals("a\nb", head("a\nb", 40))
+        assertEquals("a\nb", tail("a\nb", 60))
     }
 
     @Test
