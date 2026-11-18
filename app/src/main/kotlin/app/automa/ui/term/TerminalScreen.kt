@@ -176,7 +176,7 @@ fun TerminalScreen(id: Int, nav: Navigator) {
         onDispose { if (app.sessions.view === view) app.sessions.view = null }
     }
     // Links from guest programs (xdg-open), for example a login. The setup made the folder: the guest is ready here.
-    LaunchedEffect(Unit) { app.links.start() }
+    LaunchedEffect(Unit) { withContext(Dispatchers.IO) { app.links.start() } }
     // Back ends a text selection and the terminal stays open. With enableOnBackInvokedCallback, Back does not go to
     // TerminalView.onKeyPreIme.
     BackHandler(enabled = selecting) { view?.stopTextSelectionMode() }

@@ -18,8 +18,6 @@ class Links(private val dir: File) {
     /** The last link that a program asked to open, until the user opens or dismisses it. */
     val link: StateFlow<String?> = _link.asStateFlow()
 
-    private var watching = false
-
     // A rename of the finished file is one event (the script writes a temporary file first).
     private val observer = object : FileObserver(dir, MOVED_TO or CLOSE_WRITE) {
         override fun onEvent(event: Int, path: String?) {
@@ -27,17 +25,24 @@ class Links(private val dir: File) {
         }
     }
 
-    /** Starts to watch [DIR]. Only on a ready guest: the setup makes the folder (review SEC-7). Main thread. */
+    /**
+     * Starts to watch [DIR], again at each call: a reset deletes the folder, and the watch goes with it (review
+     * KM-S-05). Then reads a link that came while there was no watch. Only on a ready guest: the setup makes the folder
+     * (review SEC-7). Not on the main thread.
+     */
+    @Synchronized
     fun start() {
-        if (watching || !dir.isDirectory) return
+        if (!dir.isDirectory) return
+        observer.stopWatching()
         observer.startWatching()
-        watching = true
+        read()
     }
 
     fun clear() {
         _link.value = null
     }
 
+    @Synchronized
     private fun read() {
         val file = File(dir, FILE)
         // Not a FIFO: its open would stop the observer thread of the app (review DS-L-19).
