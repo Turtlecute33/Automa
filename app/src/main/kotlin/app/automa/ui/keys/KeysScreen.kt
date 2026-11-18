@@ -58,6 +58,7 @@ fun KeysScreen(nav: Navigator) {
     val names by app.secrets.names.collectAsStateWithLifecycle()
     var adding by remember { mutableStateOf(false) }
     var clearing by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
@@ -80,13 +81,26 @@ fun KeysScreen(nav: Navigator) {
                     modifier = Modifier.padding(16.dp),
                 )
             }
+            error?.let { text ->
+                item(key = "error") {
+                    ListItem(
+                        headlineContent = { Text(text, color = MaterialTheme.colorScheme.error) },
+                        // A delete fails each time when the saved keys cannot be opened: a way out (review DS-L-43).
+                        trailingContent = { TextButton(onClick = { clearing = true }) { Text("Delete all keys") } },
+                    )
+                }
+            }
             item(key = "tff") { TffRow(hasKey = Tff.KEY in names) }
             items(names.filter { it != Secrets.GH_TOKEN }, key = { it }) { name ->
                 ListItem(
                     headlineContent = { Text(name) },
                     leadingContent = { Icon(Icons.Key, null) },
                     trailingContent = {
-                        IconButton(onClick = { scope.launch { runCatching { app.secrets.remove(name) } } }) { Icon(Icons.Delete, "Delete $name") }
+                        IconButton(onClick = {
+                            error = null
+                            // The error shows on the screen (review KM-P-05).
+                            scope.launch { runCatching { app.secrets.remove(name) }.onFailure { error = userText(it) } }
+                        }) { Icon(Icons.Delete, "Delete $name") }
                     },
                 )
             }
@@ -107,6 +121,7 @@ fun KeysScreen(nav: Navigator) {
             confirmButton = {
                 TextButton(onClick = {
                     clearing = false
+                    error = null
                     app.scope.launch {
                         app.secrets.clear()
                         app.prefs.setLogin(null)

@@ -48,6 +48,7 @@ import app.automa.ui.SectionHeader
 import app.automa.ui.nav.Navigator
 import app.automa.ui.nav.Route
 import app.automa.ui.setup.SetupPanel
+import app.automa.ui.userText
 import kotlinx.coroutines.launch
 
 /** The open sessions and the repositories. Before the setup is complete, the setup panel. */
@@ -65,6 +66,7 @@ fun HomeScreen(nav: Navigator) {
     var cloning by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Repo?>(null) }
     var opening by remember { mutableStateOf<Repo?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
     val ready = setup == Setup.State.Ready
 
     // The session notification needs this permission. Without it, the sessions work and the notification is hidden.
@@ -141,6 +143,16 @@ fun HomeScreen(nav: Navigator) {
                 }
             }
             item(key = "repos") { SectionHeader("Repositories") }
+            error?.let { text ->
+                item(key = "error") {
+                    Text(
+                        text,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
+            }
             if (repos.isEmpty()) {
                 item(key = "empty") {
                     Text(
@@ -183,7 +195,9 @@ fun HomeScreen(nav: Navigator) {
             confirmButton = {
                 TextButton(onClick = {
                     deleting = null
-                    scope.launch { runCatching { app.repos.delete(repo.name) } }
+                    error = null
+                    // The error shows on the screen (review KM-P-05).
+                    scope.launch { runCatching { app.repos.delete(repo.name) }.onFailure { error = userText(it) } }
                 }) { Text("Delete") }
             },
             dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },

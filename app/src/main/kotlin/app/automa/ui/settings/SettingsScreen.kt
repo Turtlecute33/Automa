@@ -43,6 +43,8 @@ import app.automa.ui.SectionHeader
 import app.automa.ui.userText
 import app.automa.ui.nav.Navigator
 import app.automa.ui.nav.Route
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 @Composable
@@ -62,6 +64,8 @@ fun SettingsScreen(nav: Navigator) {
     var loggingIn by remember { mutableStateOf(false) }
     var loggedOut by remember { mutableStateOf(false) }
     var resetting by remember { mutableStateOf(false) }
+    var resetRunning by remember { mutableStateOf(false) }
+    var resetError by remember { mutableStateOf<String?>(null) }
     val secure = remember { context.getSystemService(KeyguardManager::class.java).isDeviceSecure }
 
     Scaffold(
@@ -181,9 +185,19 @@ fun SettingsScreen(nav: Navigator) {
             item(key = "reset") {
                 ListItem(
                     headlineContent = { Text("Reset the environment") },
-                    supportingContent = { Text("Deletes the Linux system and all repositories on this phone") },
+                    supportingContent = {
+                        Text(
+                            resetError ?: "Deletes the Linux system and all repositories on this phone",
+                            color = if (resetError != null) MaterialTheme.colorScheme.error else Color.Unspecified,
+                        )
+                    },
                     leadingContent = { Icon(Icons.Delete, null) },
-                    modifier = Modifier.clickable { resetting = true },
+                    trailingContent = if (resetRunning) {
+                        { CircularWavyProgressIndicator(Modifier.size(32.dp)) }
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.clickable(enabled = !resetRunning) { resetting = true },
                 )
             }
             item(key = "about") {
@@ -220,12 +234,18 @@ fun SettingsScreen(nav: Navigator) {
             confirmButton = {
                 TextButton(onClick = {
                     resetting = false
-                    app.scope.launch {
-                        // The sessions and the chat agents end first: they must not write into the guest during the
-                        // delete (review SEC-16, DS-L-07).
-                        runCatching { app.setup.reset { app.sessions.stopAll(); app.chats.stopAll() } }
+                    resetRunning = true
+                    resetError = null
+                    // The app scope: the reset continues when this screen closes. The sessions and the chat agents end
+                    // first: they must not write into the guest during the delete (review SEC-16, DS-L-07).
+                    val reset = app.scope.async { app.setup.reset { app.sessions.stopAll(); app.chats.stopAll() } }
+                    // This screen waits for the reset, so that it can show an error (review KM-P-05).
+                    scope.launch {
+                        runCatching { reset.await() }
+                            .onSuccess { nav.back() }
+                            .onFailure { if (it !is CancellationException) resetError = userText(it) }
+                        resetRunning = false
                     }
-                    nav.back()
                 }) { Text("Reset") }
             },
             dismissButton = { TextButton(onClick = { resetting = false }) { Text("Cancel") } },
