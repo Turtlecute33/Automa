@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
+import app.automa.term.Links
 
 /** A Markdown block of an agent message (DESIGN §13). Only what agents write: no HTML and no images. */
 @Immutable
@@ -251,7 +252,7 @@ object Markdown {
     }
 
     /** Only https links can open, at most 2048 characters, with no spaces or control characters. */
-    fun safe(url: String) = url.length in 9..2048 && url.startsWith("https://") && url.none { it.isWhitespace() || it.isISOControl() }
+    fun safe(url: String) = url.length in 9..2048 && Links.checked(url)
 
     private const val ESCAPABLE = "\\`*_{}[]()#+-.!|~>"
     private const val SHORT = 300

@@ -45,5 +45,12 @@ class AgentsTest {
         assertNull(Links.parse("https://example.org/\u001b[2J"))
         assertNull(Links.parse("https://example.org/\nhttps://other.example/"))
         assertNull(Links.parse("https://example.org/" + "x".repeat(5000)))
+        // The host on the screen must be the host that the browser opens.
+        assertNull(Links.parse("https:///evil.example/login"))
+        assertNull(Links.parse("https://\\evil.example/login"))
+        assertNull(Links.parse("https://github.com@evil.example/"))
+        assertNull(Links.parse("https://\u0430pple.com/"))
+        assertNull(Links.parse("https://evil.example\u202E/moc.buhtig"))
+        assertEquals("https://xn--pple-43d.com:8443/a?b#c", Links.parse("https://xn--pple-43d.com:8443/a?b#c"))
     }
 }

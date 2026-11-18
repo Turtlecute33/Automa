@@ -70,6 +70,8 @@ class MarkdownTest {
         assertEquals("ok no see https://example.org/b.", s.text)
         val urls = s.getLinkAnnotations(0, s.length).map { (it.item as LinkAnnotation.Clickable).tag }
         assertEquals(listOf("https://example.org/a", "https://example.org/b"), urls)
+        val blank = Markdown.inline("[login](https:///evil.example/login)", styles)
+        assertTrue(blank.getLinkAnnotations(0, blank.length).isEmpty())
     }
 
     @Test

@@ -50,8 +50,16 @@ class Links(private val dir: File) {
         private const val MAX = 4096
 
         /** The link in [text], or null when it is not one https link that the user can check. */
-        fun parse(text: String): String? = text.removeSuffix("\n").takeIf { link ->
-            link.length in 9..MAX && link.startsWith("https://") && link.none { it.isWhitespace() || it.isISOControl() }
-        }
+        fun parse(text: String): String? = text.removeSuffix("\n").takeIf { link -> link.length in 9..MAX && checked(link) }
+
+        /**
+         * An https link whose host is plain ASCII (letters, digits, dots, hyphens; punycode for other scripts) with an
+         * optional port, and with no space or control character. Then the host on the screen is the host that the
+         * browser opens: Android shows no host for `https:///evil.example` or `https://\evil.example`, but the browser
+         * opens evil.example; and a host in look-alike letters reads as another host. Also for chat links.
+         */
+        fun checked(link: String) = PLAIN.matches(link) && link.none { it.isWhitespace() || it.isISOControl() }
+
+        private val PLAIN = Regex("""https://[A-Za-z0-9.-]+(:[0-9]{1,5})?([/?#].*)?""")
     }
 }
