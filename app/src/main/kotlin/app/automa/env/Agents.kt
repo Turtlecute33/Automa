@@ -119,15 +119,17 @@ class Agents(private val env: Env) {
         Agent.Claude -> {
             val version = Download.text(Pins.CLAUDE_STABLE, 64).trim()
             if (!Setup.isVersion(version)) throw IOException("Unexpected version data from Anthropic")
-            AgentRelease(
-                version,
-                zstSha256 = checksum(Download.text(Pins.claudeZstManifest(version), MANIFEST_MAX_BYTES)),
-                sha256 = checksum(Download.text(Pins.claudeManifest(version), MANIFEST_MAX_BYTES)),
-            )
+            val zst = Download.text(Pins.claudeZstManifest(version), MANIFEST_MAX_BYTES)
+            val program = Download.text(Pins.claudeManifest(version), MANIFEST_MAX_BYTES)
+            // The JSON is parsed off the main thread (review KM-S-06).
+            withContext(Dispatchers.Default) { AgentRelease(version, zstSha256 = checksum(zst), sha256 = checksum(program)) }
         }
-        Agent.Codex -> Setup.release(Download.text(Pins.CODEX_LATEST, RELEASE_MAX_BYTES), Pins.CODEX_ASSET, "rust-v")
-            ?.let { AgentRelease(it.version, it.sha256, null) }
-            ?: throw IOException("Unexpected release data from GitHub")
+        Agent.Codex -> {
+            val json = Download.text(Pins.CODEX_LATEST, RELEASE_MAX_BYTES)
+            withContext(Dispatchers.Default) { Setup.release(json, Pins.CODEX_ASSET, "rust-v") }
+                ?.let { AgentRelease(it.version, it.sha256, null) }
+                ?: throw IOException("Unexpected release data from GitHub")
+        }
         Agent.Opencode -> throw IllegalArgumentException("opencode comes with the setup")
     }
 

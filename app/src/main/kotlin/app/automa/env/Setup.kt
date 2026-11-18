@@ -171,8 +171,9 @@ class Setup(private val env: Env, private val cache: File, private val tff: Tff,
             }
         }
         _update.value = Update.Running("Look for a new opencode", null)
-        val release = newest(Download.text(Pins.OPENCODE_RELEASES, RELEASE_MAX_BYTES))
-            ?: throw IOException("Unexpected release data from GitHub")
+        val json = Download.text(Pins.OPENCODE_RELEASES, RELEASE_MAX_BYTES)
+        // Up to some MB of JSON: not on the main thread (review KM-S-06).
+        val release = withContext(Dispatchers.Default) { newest(json) } ?: throw IOException("Unexpected release data from GitHub")
         if (newer(release.version, _opencode.value)) {
             opencode(release.version, release.sha256) { _update.value = Update.Running("Download opencode ${release.version}", it) }
         }

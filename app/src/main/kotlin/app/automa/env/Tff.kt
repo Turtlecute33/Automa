@@ -50,7 +50,9 @@ class Tff(private val env: Env, private val secrets: Secrets) {
         }
         _status.value = Status.Loading
         try {
-            val ids = models(Download.text("$BASE_URL/models", MAX_BYTES, mapOf("Authorization" to "Bearer $key")))
+            val json = Download.text("$BASE_URL/models", MAX_BYTES, mapOf("Authorization" to "Bearer $key"))
+            // The JSON is parsed off the main thread (review KM-S-06).
+            val ids = withContext(Dispatchers.Default) { models(json) }
             if (ids.isEmpty()) throw IOException("TFF sent no models")
             withContext(Dispatchers.IO) {
                 val part = File(file.path + ".part")
