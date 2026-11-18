@@ -144,6 +144,21 @@ class ChatTest {
     }
 
     @Test
+    fun claudeResetClosesTheOpenRequests() {
+        // A card of the conversation before a /clear must not stay to answer (review DS-L-94).
+        val d = ClaudeDriver(dir, FakeGuest()).wired()
+        d.feed(
+            """{"type":"control_request","request_id":"p1","request":{"subtype":"can_use_tool","tool_name":"Bash","tool_use_id":"t1","input":{"command":"make"}}}""",
+            """{"type":"conversation_reset"}""",
+        )
+        assertTrue(d.state.value.asks.isEmpty())
+        val r = sent.single().getJSONObject("response")
+        assertEquals("p1", r.getString("request_id"))
+        assertEquals("deny", r.getJSONObject("response").getString("behavior"))
+        assertEquals("t1", r.getJSONObject("response").getString("toolUseID"))
+    }
+
+    @Test
     fun claudeTrustComesFromItsOwnStore() {
         val config = """{"projects":{"/root/repos":{"hasTrustDialogAccepted":true},"/root/other":{"hasTrustDialogAccepted":false}}}"""
         assertTrue(ClaudeDriver.trusted(config, "/root/repos/demo"))

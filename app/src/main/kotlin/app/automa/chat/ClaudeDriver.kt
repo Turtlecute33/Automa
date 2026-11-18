@@ -81,7 +81,7 @@ class ClaudeDriver(dir: String, private val guest: Guest) : Driver(dir) {
             "user" -> toolResults(json)
             "result" -> result(json)
             "system" -> system(json)
-            "conversation_reset" -> update { it.copy(entries = emptyList()) }.also { note("New conversation") }
+            "conversation_reset" -> reset()
             "rate_limit_event" -> json.optJSONObject("rate_limit_info")?.let { info ->
                 when (info.str("status")) {
                     "allowed_warning" -> note("You are near a usage limit of your plan.")
@@ -95,6 +95,23 @@ class ClaudeDriver(dir: String, private val guest: Guest) : Driver(dir) {
                 if (r.str("subtype") == "success") call.complete(r.optJSONObject("response") ?: JSONObject())
                 else call.completeExceptionally(IOException(clean(r.str("error")).take(300)))
             }
+        }
+    }
+
+    /**
+     * A new conversation (`/clear`): the rows, the cards and the stream state of the old one go. An open request gets a
+     * deny, so that it does not wait with no card (review DS-L-94).
+     */
+    private suspend fun reset() {
+        val open = requests.toList()
+        requests.clear()
+        streamed.clear()
+        used.clear()
+        message = ""
+        update { it.copy(entries = emptyList(), asks = emptyList()) }
+        note("New conversation")
+        open.forEach { (id, r) ->
+            write(response(id, JSONObject().put("behavior", "deny").put("message", "The conversation was reset.").put("toolUseID", r.str("tool_use_id"))))
         }
     }
 
