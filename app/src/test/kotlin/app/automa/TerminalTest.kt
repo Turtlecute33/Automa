@@ -132,4 +132,12 @@ class TerminalTest {
         feed("\u001BP+q6B75\u001B\\")
         assertEquals("\u001BP1+r6B75=1B5B41\u001B\\", out.sent.toString())
     }
+
+    @Test
+    fun aSelectionAtTheRightEdgeStaysInTheRow() {
+        // A long press in the sliver right of the last column gives column 80. On a row that grew (combining marks),
+        // the column search read past the end of the row.
+        feed("e\u0301\u0302".repeat(80))
+        assertEquals("", term.screen.getSelectedText(80, 0, 80, 0))
+    }
 }

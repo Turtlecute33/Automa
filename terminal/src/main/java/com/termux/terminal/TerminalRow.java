@@ -90,7 +90,9 @@ public final class TerminalRow {
 
     /** Note that the column may end of second half of wide character. */
     public int findStartOfColumn(int column) {
-        if (column == mColumns) return getSpaceUsed();
+        // Automa: also past the last column (a touch right of it gives mColumns, and a selection end adds one). The
+        // search read past the end of a row that had grown with combining marks.
+        if (column >= mColumns) return getSpaceUsed();
 
         int currentColumn = 0;
         int currentCharIndex = 0;
