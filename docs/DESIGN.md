@@ -139,7 +139,8 @@ The single source of truth for Automa. Findings with IDs are in `research/`.
 - Each session gets `GH_TOKEN`. `/etc/gitconfig` uses `gh auth git-credential` for github.com,
   so `git push` works. The commit identity is the GitHub name and the no-reply address
   `<id>+<login>@users.noreply.github.com`, so the private e-mail address does not go into commits.
-- Logout deletes the token from the vault. The token stays valid on GitHub until the user
+- Logout deletes the token from the vault. Open sessions and chats keep `GH_TOKEN` in their
+  environment until they close. The token stays valid on GitHub until the user
   revokes it there (Settings → Applications).
 
 - Clone: `owner/repo`, an https link, or account repositories. The user can select more than one
@@ -213,13 +214,14 @@ The single source of truth for Automa. Findings with IDs are in `research/`.
 
 - `allowBackup="false"`, data extraction rules exclude all, `memtagMode="sync"`.
 - Only the launcher activity is exported. The service is not exported.
-- Network security config: no cleartext, system CAs only, certificate transparency.
+- Network security config: no cleartext, system CAs only, certificate transparency (Android 16 and
+  later).
 - Downloads: HTTPS only, SHA-256 (pinned for the setup, from the GitHub release data for an
   update), size limit.
 - Release logs: no messages, only exception classes.
 - App lock (optional): `BIOMETRIC_STRONG or DEVICE_CREDENTIAL`. No content before the settings are
-  read (SEC-3). The documents provider has no root and refuses all access while the lock is on
-  (SEC-2).
+  read (SEC-3). The documents provider has no root and refuses new access while the lock is on
+  (SEC-2); a file that is open already stays open.
 - No recents preview. The terminal has no `FLAG_SECURE`, so that the user can take screenshots.
 - "Stop all" in the notification needs an unlocked phone.
 - Only the session on the screen can set the clipboard (OSC 52 and copies, SEC-8).
@@ -326,10 +328,11 @@ The native chat (decision of the owner, 2026-11-18). Research: `research/chat-cl
     chat asks (Trust, Do not trust) and adds `[projects."<folder>"] trust_level` to
     `~/.codex/config.toml`.
   - opencode: `OPENCODE_DISABLE_PROJECT_CONFIG=1` (§8).
-- Network: `opencode acp` 1.x opens an HTTP server on 127.0.0.1 (port 4096) for its own client
-  (OC-2). The chat sets a new random `OPENCODE_SERVER_PASSWORD` (32 bytes) for each start, in the
-  environment. Emulator test: another UID gets 401. The opencode TUI opens no port. The chat itself
-  opens no port and makes no request.
+- Network: `opencode acp` opens an HTTP server on 127.0.0.1, on a random port, for its own client
+  (OC-2): 1.x in the same process, 2.x in a child `opencode serve` with its own random password. For
+  1.x, the chat sets a new random `OPENCODE_SERVER_PASSWORD` (32 bytes) for each start, in the
+  environment. Emulator test: another UID gets 401. The opencode TUI has its own private server
+  (§8). The chat itself opens no port and makes no request.
 - Login: the chat does not log in. Claude Code: `claude auth status` at the start and the error
   texts (CC-5). Codex: `account/read` (CX-4). opencode: no model or error -32000. The card opens the
   TUI (the login there uses the link bar, §5), or the API keys screen for opencode.

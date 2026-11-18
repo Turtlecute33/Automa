@@ -89,8 +89,9 @@ your own Claude or ChatGPT account. The models run at the provider; all other pa
 - Chat and trust: a cloned repository cannot start programs (hooks, MCP servers, project settings)
   before you trust it. Claude Code uses the trust that you gave in its terminal UI; until then the
   chat loads no project settings. Codex asks in the chat before its first start in a folder.
-- The opencode chat (`opencode acp`) has a server on 127.0.0.1 inside. Automa gives it a new random
-  password at each start, so other apps on the phone cannot use it. The chat itself opens no port.
+- The opencode chat (`opencode acp`) has a server on 127.0.0.1 inside. It gets a new random password
+  at each start (opencode 2.x makes it; for 1.x, Automa gives it), so other apps on the phone cannot
+  use it. The chat itself opens no port.
 - The GitHub token and the API keys are encrypted with an AES-256-GCM key in the Android Keystore
   (StrongBox when available). The APK has no OAuth client ID and no API key.
 - git uses the GitHub CLI as its credential helper, so the token is never in `.git/config` or in a
@@ -106,7 +107,7 @@ your own Claude or ChatGPT account. The models run at the provider; all other pa
   the clipboard.
 - The tar reader refuses absolute paths, `..` and writes through a symbolic link. The documents
   provider never leaves the home folder (no `..`, and it does not follow links), and it refuses
-  all access while the app lock is on.
+  new access while the app lock is on (a file that an app opened before the lock stays open).
 - No backup of app data, hardened memory (`memtagMode="sync"`), HTTPS only with the system CAs.
 - On GrapheneOS, set "Native code debugging" to Allowed for Automa (App info): PRoot uses `ptrace`.
   If it is blocked, the setup tells you and opens App info. Also, do not turn on "Restrict dynamic
@@ -122,8 +123,12 @@ Limits:
 - The guest sends DNS queries without encryption. Automa gives it the same DNS servers as Android:
   the Private DNS server in strict mode, else the servers of the network or the VPN
   ([research F-5](docs/research/feasibility.md)).
-- Logout deletes the token on the phone. The token stays valid on GitHub until you revoke it
-  (Settings → Applications → GitHub CLI).
+- opencode in Build mode runs commands and changes files with no card: this is its default, and
+  only reads of `.env` files ask. Text in a repository (for example `AGENTS.md`) can tell the model
+  what to do. For a repository that you do not know, use Plan mode, or Codex with "Ask before
+  changes".
+- Logout deletes the token from the vault. Sessions and chats that are open keep it until you close
+  them. The token stays valid on GitHub until you revoke it (Settings → Applications → GitHub CLI).
 
 ## Privacy
 

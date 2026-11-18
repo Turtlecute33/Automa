@@ -108,10 +108,11 @@ PROBLEM: the setup checks opencode with a SHA-256 in the APK. The in-app update 
 `digest` of the asset from the GitHub release data. A compromised GitHub account of opencode or
 GitHub itself could give a bad file with a matching digest.
 FIX: accepted. It is the same trust as the official opencode installer, and the user starts each
-update. Limits: HTTPS with the system CAs and CT, only the `releases/latest` answer (no drafts, no
-pre-releases), a plain `x.y.z` version that is newer than the installed one (no downgrade), the
-download URL is made from the version (not taken from the answer), the digest must be `sha256:` and
-64 hex characters, size limits on the answer (1 MB) and the archive (256 MB).
+update. Limits: HTTPS with the system CAs and CT, only the releases of the 2.x line in the release
+list (`releases?per_page=30`, DESIGN §3; no drafts, no pre-releases), a plain `x.y.z` version that is
+newer than the installed one (no downgrade), the download URL is made from the version (not taken
+from the answer), the digest must be `sha256:` and 64 hex characters, size limits on the answer
+(8 MiB) and the archive (256 MB).
 VERIFY: unit test `opencodeRelease` (pre-release, bad tag, missing or bad digest, not JSON);
 Settings → Update on a device.
 
@@ -305,6 +306,7 @@ it was cancelled, call `pipe.stop()` and return.
 VERIFY: emulator, debug build with a delay after the process start: close the chat during the
 delay. No `libproot.so` process stays.
 STATUS: Fixed in 0.5.0: `Env.start` runs with `NonCancellable`; `Driver.run` stops the new pipe when the job was cancelled; `pipe` is volatile.
+That fix did not work: `withContext(NonCancellable + Dispatchers.IO)` drops its result after a cancel, because the dispatcher changes. Fixed again: `Driver.run` and `Env.run` wrap the start in `withContext(NonCancellable)` with no dispatcher change. Unit test `aStartThatTheCloseInterruptsKeepsItsResult`. The emulator test is not done yet.
 
 ## SEC-25 [Low] [fixed] The terminal command line uses agent ids with no check
 
