@@ -99,6 +99,14 @@ class GitHub(private val env: Env, private val secrets: Secrets, private val pre
     /** Deletes the gh config folder of a login, also one that a stopped process left (review SEC-9). */
     suspend fun cleanUp() = withContext(Dispatchers.IO) { Tree.delete(env.file(LOGIN_DIR)) }
 
+    /**
+     * A stop of the app between the token write and the name write leaves a token with no login name: no screen shows
+     * it, but each new process gets it. This deletes it (review KM-M-18). After [Prefs.load] and [Secrets.load].
+     */
+    suspend fun repair() {
+        if (prefs.login.value == null && Secrets.GH_TOKEN in secrets.names.value) secrets.remove(Secrets.GH_TOKEN)
+    }
+
     /** Deletes the token on this phone. It stays valid on GitHub until the user revokes it there. */
     suspend fun logout() {
         secrets.remove(Secrets.GH_TOKEN)

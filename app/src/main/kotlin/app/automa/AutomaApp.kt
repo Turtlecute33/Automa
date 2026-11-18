@@ -58,6 +58,7 @@ class AutomaApp : Application() {
             listOf<suspend () -> Unit>(
                 { prefs.load() },
                 { secrets.load() },
+                { github.repair() },
                 { setup.check() },
                 { tff.check() },
                 { Look.font(this@AutomaApp) },
