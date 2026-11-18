@@ -480,6 +480,29 @@ class ChatTest {
     }
 
     @Test
+    fun codexDoesNotStartWithAnotherCodexHome() {
+        // With another CODEX_HOME, Codex reads another config.toml than the one with the trust answer (review KM-M-19).
+        val command = CodexDriver::class.java.getDeclaredMethod("command").apply { isAccessible = true }
+            .invoke(CodexDriver(dir, FakeGuest())) as List<*>
+        val program = command.lastIndexOf("codex")
+        assertTrue(program >= 0, command.toString())
+        // The host has no codex: echo runs in its place.
+        val line = command.take(program).map { it.toString() } + listOf("echo", "started")
+        fun run(home: String?): Pair<Int, String> {
+            val builder = ProcessBuilder(line).redirectErrorStream(true)
+            builder.environment().remove("CODEX_HOME")
+            home?.let { builder.environment()["CODEX_HOME"] = it }
+            val process = builder.start()
+            val out = process.inputStream.bufferedReader().readText()
+            return process.waitFor() to out
+        }
+        assertEquals(0 to "started\n", run(null))
+        assertEquals(0 to "started\n", run("/root/.codex"))
+        val (code, out) = run("/root/.codex-work")
+        assertTrue(code != 0 && "CODEX_HOME" in out && "started" !in out, out)
+    }
+
+    @Test
     fun twoCodexChatsInOneFolderAskOnce() {
         // Two trust tables for one folder make ~/.codex/config.toml invalid TOML, and Codex then does not start at all.
         val guest = FakeGuest()

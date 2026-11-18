@@ -33,7 +33,12 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
     /** The file changes of each fileChange item, for the approval card (research CX-14). */
     private val changes = HashMap<String, JSONArray>()
 
-    override fun command() = listOf("codex", "app-server", "--disable", "plugins")
+    /**
+     * Automa keeps the trust answer in /root/.codex/config.toml. With another CODEX_HOME (for example from ~/.profile),
+     * Codex reads another config, so it must not start (review KM-M-19). The check is in sh before the exec of codex:
+     * no extra process start.
+     */
+    override fun command() = listOf("/bin/sh", "-c", HOME_CHECK, "codex", "codex", "app-server", "--disable", "plugins")
 
     /**
      * `thread/start` trusts a git repository with no question (research CX-6), and a trusted folder loads its
@@ -511,6 +516,9 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
 
     companion object {
         private const val CONFIG = "/root/.codex/config.toml"
+        private const val HOME_CHECK = "case \"\${CODEX_HOME:-/root/.codex}\" in /root/.codex|/root/.codex/) exec \"\$@\";; esac; " +
+            "echo 'CODEX_HOME is set to another folder, but Automa keeps the folder trust in /root/.codex/config.toml. " +
+            "Remove CODEX_HOME from the shell profile, then start a new chat.' >&2; exit 1"
         private val TRUST_LOCK = Mutex()
         private const val TRUST = "trust"
         private const val PLAN = "plan"
