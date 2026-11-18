@@ -3,6 +3,7 @@ package app.automa.env
 import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -99,7 +100,8 @@ class Agents(private val env: Env) {
             _work.value = Work(agent, "", error = e)
             throw e
         } finally {
-            withContext(Dispatchers.IO) {
+            // NonCancellable: in a cancelled job, withContext alone throws at once and deletes nothing (review DS-L-38).
+            withContext(NonCancellable + Dispatchers.IO) {
                 zst.delete()
                 part.delete()
             }

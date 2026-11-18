@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import app.automa.data.Secrets
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -62,7 +63,8 @@ class Tff(private val env: Env, private val secrets: Secrets) {
             }
             _status.value = Status.Loaded(ids.size)
         } catch (e: CancellationException) {
-            check()
+            // NonCancellable: in a cancelled job, check() alone throws at once and the state stays Loading.
+            withContext(NonCancellable) { check() }
             throw e
         } catch (e: Exception) {
             _status.value = Status.Failed(e)
