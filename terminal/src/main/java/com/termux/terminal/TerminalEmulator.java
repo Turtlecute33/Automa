@@ -87,6 +87,8 @@ public final class TerminalEmulator {
     private static final int ESC_CSI_UNSUPPORTED_PARAMETER_BYTE = 22;
     /** Escape processing: ESC [ <parameter bytes> <intermediate bytes> */
     private static final int ESC_CSI_UNSUPPORTED_INTERMEDIATE_BYTE = 23;
+    /** Automa: escape processing: "ESC P" (DCS), and then ESC, which can start the String Terminator (ESC \). */
+    private static final int ESC_P_ESCAPE = 24;
 
     /** The number of parameter arguments including colon separated sub-parameters. */
     private static final int MAX_ESCAPE_PARAMETERS = 32;
@@ -632,8 +634,10 @@ public final class TerminalEmulator {
                 break;
             case 27: // ESC
                 // Starts an escape sequence unless we're parsing a string
-                if (mEscapeState == ESC_P) {
+                if (mEscapeState == ESC_P || mEscapeState == ESC_P_ESCAPE) {
                     // XXX: Ignore escape when reading device control sequence, since it may be part of string terminator.
+                    // Automa: but remember it. Only ESC \ ends the string, see doDeviceControl() (KM-N-06).
+                    mEscapeState = ESC_P_ESCAPE;
                     return;
                 } else if (mEscapeState != ESC_OSC) {
                     startEscapeSequence();
@@ -847,6 +851,7 @@ public final class TerminalEmulator {
                         doOscEsc(b);
                         break;
                     case ESC_P:
+                    case ESC_P_ESCAPE:
                         doDeviceControl(b);
                         break;
                     case ESC_CSI_QUESTIONMARK_ARG_DOLLAR:
@@ -919,7 +924,11 @@ public final class TerminalEmulator {
 
     /** When in {@link #ESC_P} ("device control") sequence. */
     private void doDeviceControl(int b) {
-        switch (b) {
+        // Automa: only ESC \ ends the string. A bare \ is data (sixel data has it): it ended the string, and the rest
+        // showed as text (KM-N-06). An ESC before another character is dropped, as before.
+        boolean afterEscape = mEscapeState == ESC_P_ESCAPE;
+        mEscapeState = ESC_P;
+        switch (afterEscape ? b : -1) {
             case (byte) '\\': // End of ESC \ string Terminator
             {
                 String dcs = mOSCOrDeviceControlArgs.toString();

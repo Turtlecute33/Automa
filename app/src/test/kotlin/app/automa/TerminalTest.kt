@@ -204,4 +204,17 @@ class TerminalTest {
         assertEquals("ABCD", term.screen.getSelectedText(0, 0, 79, 0))
         assertTrue(TextStyle.decodeEffect(term.screen.getStyleAt(0, 2)) and TextStyle.CHARACTER_ATTRIBUTE_BOLD != 0)
     }
+
+    @Test
+    fun onlyEscBackslashEndsADeviceControlString() {
+        // KM-N-06: a bare \ ended the DCS, and the rest showed as text. Sixel data has \ (0x5C is a sixel).
+        feed("\u001BPq#0;2;0;0;0#0\\~-\\\\~\u001B\\A")
+        // An ESC before another character stays in the string, as before (tmux passthrough doubles each ESC).
+        feed("\u001BPtmux;\u001B\u001B[31m\u001B\\B")
+        assertEquals("AB", term.screen.getSelectedText(0, 0, 79, 0))
+        assertEquals(TextStyle.COLOR_INDEX_FOREGROUND, TextStyle.decodeForeColor(term.screen.getStyleAt(0, 1)))
+        // A query still gets its reply.
+        feed("\u001BP+q6B75\u001B\\")
+        assertEquals("\u001BP1+r6B75=1B5B41\u001B\\", out.sent.toString())
+    }
 }
