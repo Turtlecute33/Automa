@@ -1,6 +1,15 @@
 package app.automa
 
 import app.automa.chat.Pipe
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import java.util.concurrent.Executors
 import org.json.JSONObject
 import java.io.IOException
 import java.io.InputStream
@@ -51,5 +60,31 @@ class PipeTest {
         val lines = mutableListOf<String>()
         Pipe.lines(input) { lines += it }
         assertEquals(listOf("{\"a\":1}", "{\"b\""), lines)
+    }
+
+    /**
+     * Review SEC-24: a process that starts while its chat closes must come back to the caller, so that it can stop it.
+     * withContext with a dispatcher change gives its result back with a cancel check and drops it; with the same
+     * dispatcher (only NonCancellable) the result comes back.
+     */
+    @Test
+    fun aStartThatTheCloseInterruptsKeepsItsResult() = runBlocking {
+        val main = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        suspend fun start(started: CompletableDeferred<Unit>) = withContext(NonCancellable + Dispatchers.IO) {
+            started.complete(Unit)
+            Thread.sleep(200)
+            "process"
+        }
+        suspend fun result(call: suspend (CompletableDeferred<Unit>) -> String): String? {
+            var got: String? = null
+            val started = CompletableDeferred<Unit>()
+            val job = launch(main) { got = call(started) }
+            started.await()
+            job.cancelAndJoin()
+            return got
+        }
+        assertEquals(null, result { start(it) })
+        assertEquals("process", result { withContext(NonCancellable) { start(it) } })
+        main.close()
     }
 }

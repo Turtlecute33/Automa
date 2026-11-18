@@ -62,7 +62,9 @@ class Env(private val context: Context, private val secrets: Secrets) {
     suspend fun run(program: List<String>, cwd: String = HOME, line: (String) -> Unit = {}): Int {
         val mark = mark()
         return coroutineScope {
-            val process = start(program, cwd, mark, NO_PROMPT, mergeErrors = true).also { it.outputStream.close() }
+            // As in Driver.run: a cancel during the start must not lose the process, so that the finally stops it.
+            val process = withContext(NonCancellable) { start(program, cwd, mark, NO_PROMPT, mergeErrors = true) }
+                .also { it.outputStream.close() }
             val reader = launch(Dispatchers.IO) {
                 runCatching { process.inputStream.bufferedReader().forEachLine(line) }
             }
@@ -83,6 +85,8 @@ class Env(private val context: Context, private val secrets: Secrets) {
     suspend fun start(program: List<String>, cwd: String, mark: String, extra: Map<String, String> = emptyMap(), mergeErrors: Boolean = false): Process {
         val env = environment() + extra
         // No cancel between the start and the return: a lost Process would leave the program running (review SEC-24).
+        // The dispatcher change still drops the result after a cancel, so the callers also wrap the call in
+        // withContext(NonCancellable).
         return withContext(NonCancellable + Dispatchers.IO) {
             ProcessBuilder(argv(cwd, listOf(mark) + program)).redirectErrorStream(mergeErrors)
                 .apply { environment().run { clear(); putAll(env) } }

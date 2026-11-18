@@ -109,7 +109,10 @@ abstract class Driver(val dir: String) {
     suspend fun run(env: Env, scope: CoroutineScope) {
         if (!withContext(serial) { prepare() }) return
         val pipe = try {
-            Pipe.start(env, dir, command(), environment())
+            // Only NonCancellable, no other dispatcher: then the new process comes back also when the chat closes during
+            // the start, and the check below stops it. With a dispatcher change, withContext drops its result after a
+            // cancel (review SEC-24).
+            withContext(NonCancellable) { Pipe.start(env, dir, command(), environment()) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
