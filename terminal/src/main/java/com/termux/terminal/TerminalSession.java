@@ -75,7 +75,8 @@ public final class TerminalSession extends TerminalOutput {
     private final String mShellPath;
     private final String mCwd;
     private final String[] mArgs;
-    private final String[] mEnv;
+    /** Automa: not final. It holds the secrets, so initializeEmulator() drops it at the start (KM-N-04). */
+    private String[] mEnv;
     private final Integer mTranscriptRows;
 
 
@@ -128,7 +129,11 @@ public final class TerminalSession extends TerminalOutput {
         mEmulator = new TerminalEmulator(this, columns, rows, cellWidthPixels, cellHeightPixels, mTranscriptRows, mClient);
 
         int[] processId = new int[1];
-        mTerminalFileDescriptor = JNI.createSubprocess(mShellPath, mCwd, mArgs, mEnv, processId, rows, columns, cellWidthPixels, cellHeightPixels);
+        // Automa: drop the environment (it has the secrets) before the start. The session kept it for its whole life,
+        // also when the process ended with an error and the tab stayed open (KM-N-04).
+        String[] env = mEnv;
+        mEnv = null;
+        mTerminalFileDescriptor = JNI.createSubprocess(mShellPath, mCwd, mArgs, env, processId, rows, columns, cellWidthPixels, cellHeightPixels);
         mShellPid = processId[0];
 
         final FileDescriptor terminalFileDescriptorWrapped = wrapFileDescriptor(mTerminalFileDescriptor, mClient);

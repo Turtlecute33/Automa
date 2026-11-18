@@ -13,6 +13,7 @@ import kotlin.test.Test
 import kotlin.concurrent.thread
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -366,5 +367,14 @@ class TerminalTest {
         assertEquals(3, read.invoke(queue, buffer, true))
         assertEquals("abc", String(buffer, 0, 3))
         assertEquals(-1, read.invoke(queue, buffer, true))
+    }
+
+    @Test
+    fun aSessionDropsItsEnvironmentAtTheStart() {
+        // KM-N-04: the session kept the environment (with the secrets) for its whole life, also after its process ended.
+        val session = TerminalSession("/bin/false", "/", arrayOf(), arrayOf("TOKEN=secret"), 100, Client)
+        // The JVM has no native library, so the start fails, but only after the drop.
+        runCatching { session.updateSize(80, 24, 10, 20) }
+        assertNull(TerminalSession::class.java.getDeclaredField("mEnv").apply { isAccessible = true }.get(session))
     }
 }
