@@ -34,24 +34,28 @@ class OpencodeDriver(dir: String, @Suppress("unused") private val guest: Guest) 
     override fun environment() = mapOf("OPENCODE_SERVER_PASSWORD" to password)
 
     override suspend fun begin() {
-        val init = rpc.call(
-            "initialize",
-            JSONObject().put("protocolVersion", 1).put(
-                "clientCapabilities",
-                JSONObject().put("fs", JSONObject().put("readTextFile", false).put("writeTextFile", false)).put("terminal", false)
-                    .put("elicitation", JSONObject().put("form", JSONObject())),
-            ).put("clientInfo", JSONObject().put("name", "automa").put("version", "1")),
-        )
-        version = init.optJSONObject("agentInfo")?.str("version").orEmpty()
+        // Also after an error: the composer must not stay in "Starting" (review KM-M-30).
         try {
-            val s = rpc.call("session/new", JSONObject().put("cwd", dir).put("mcpServers", JSONArray()))
-            session = s.str("sessionId")
-            config(s.optJSONArray("configOptions"))
-            if (flow.value.model == null) update { it.copy(login = NO_MODEL) }
-        } catch (e: Rpc.Error) {
-            if ("model" in (e.message ?: "")) update { it.copy(login = NO_MODEL) } else fail(e)
+            val init = rpc.call(
+                "initialize",
+                JSONObject().put("protocolVersion", 1).put(
+                    "clientCapabilities",
+                    JSONObject().put("fs", JSONObject().put("readTextFile", false).put("writeTextFile", false)).put("terminal", false)
+                        .put("elicitation", JSONObject().put("form", JSONObject())),
+                ).put("clientInfo", JSONObject().put("name", "automa").put("version", "1")),
+            )
+            version = init.optJSONObject("agentInfo")?.str("version").orEmpty()
+            try {
+                val s = rpc.call("session/new", JSONObject().put("cwd", dir).put("mcpServers", JSONArray()))
+                session = s.str("sessionId")
+                config(s.optJSONArray("configOptions"))
+                if (flow.value.model == null) update { it.copy(login = NO_MODEL) }
+            } catch (e: Rpc.Error) {
+                if ("model" in (e.message ?: "")) update { it.copy(login = NO_MODEL) } else fail(e)
+            }
+        } finally {
+            update { it.copy(starting = false, session = session.ifEmpty { null }) }
         }
-        update { it.copy(starting = false, session = session.ifEmpty { null }) }
     }
 
     override suspend fun receive(json: JSONObject) = rpc.receive(json)

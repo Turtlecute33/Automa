@@ -484,6 +484,20 @@ class ChatTest {
     }
 
     @Test
+    fun aFailedHandshakeDoesNotStayStarting() = runBlocking {
+        for (d in listOf(CodexDriver(dir, FakeGuest()), OpencodeDriver(dir, FakeGuest()))) {
+            synchronized(sent) { sent.clear() }
+            d.wired()
+            val begin = launch(kotlinx.coroutines.Dispatchers.Default) { runCatching { d.begin() } }
+            while (synchronized(sent) { sent.none { it.optString("method") == "initialize" } }) kotlinx.coroutines.delay(10)
+            val init = synchronized(sent) { sent.first { it.optString("method") == "initialize" } }
+            d.feed("""{"jsonrpc":"2.0","id":${init.getLong("id")},"error":{"code":-32603,"message":"internal error"}}""")
+            begin.join()
+            assertFalse(d.state.value.starting, d.javaClass.simpleName)
+        }
+    }
+
+    @Test
     fun onlySafeIdsGoIntoACommandLine() {
         assertTrue(app.automa.chat.safe("ses_e143d4d47ffeechXHNrkuDVjGh"))
         assertTrue(app.automa.chat.safe("01a1ebbf-1e6e-7b50-8fd0-c9c51b6421b0"))

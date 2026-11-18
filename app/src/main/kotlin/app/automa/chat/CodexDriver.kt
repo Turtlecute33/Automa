@@ -63,37 +63,42 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
     }
 
     override suspend fun begin() {
-        rpc.call(
-            "initialize",
-            JSONObject()
-                .put("clientInfo", JSONObject().put("name", "automa").put("title", "Automa").put("version", "1"))
-                .put(
-                    "capabilities",
-                    JSONObject().put("experimentalApi", true)
-                        .put("optOutNotificationMethods", JSONArray(listOf("remoteControl/status/changed", "rawResponseItem/completed", "rawResponse/completed"))),
-                ),
-        )
-        rpc.notify("initialized")
-        val account = rpc.call("account/read", JSONObject().put("refreshToken", false))
-        if (account.isNull("account") && account.optBoolean("requiresOpenaiAuth")) update { it.copy(login = LOGIN) }
-        models = rpc.call("model/list", JSONObject().put("limit", 100).put("includeHidden", false)).optJSONArray("data") ?: JSONArray()
-        val started = rpc.call(
-            "thread/start",
-            JSONObject().put("cwd", dir).put("approvalPolicy", "untrusted").put("sandbox", "danger-full-access"),
-        )
-        thread = started.optJSONObject("thread")?.str("id").orEmpty()
-        val model = started.str("model").ifEmpty { models.objects().firstOrNull { it.optBoolean("isDefault") }?.str("id") }
-        update {
-            it.copy(
-                starting = false,
-                session = thread,
-                models = models.objects().map { m -> Option(m.str("id"), clean(m.str("displayName")), clean(m.str("description"))) },
-                model = model,
-                efforts = efforts(model),
-                effort = started.str("reasoningEffort").ifEmpty { null } ?: default(model),
-                modes = MODES,
-                mode = "ask",
+        // Also after an error: the composer must not stay in "Starting" (review KM-M-30).
+        try {
+            rpc.call(
+                "initialize",
+                JSONObject()
+                    .put("clientInfo", JSONObject().put("name", "automa").put("title", "Automa").put("version", "1"))
+                    .put(
+                        "capabilities",
+                        JSONObject().put("experimentalApi", true)
+                            .put("optOutNotificationMethods", JSONArray(listOf("remoteControl/status/changed", "rawResponseItem/completed", "rawResponse/completed"))),
+                    ),
             )
+            rpc.notify("initialized")
+            val account = rpc.call("account/read", JSONObject().put("refreshToken", false))
+            if (account.isNull("account") && account.optBoolean("requiresOpenaiAuth")) update { it.copy(login = LOGIN) }
+            models = rpc.call("model/list", JSONObject().put("limit", 100).put("includeHidden", false)).optJSONArray("data") ?: JSONArray()
+            val started = rpc.call(
+                "thread/start",
+                JSONObject().put("cwd", dir).put("approvalPolicy", "untrusted").put("sandbox", "danger-full-access"),
+            )
+            thread = started.optJSONObject("thread")?.str("id").orEmpty()
+            val model = started.str("model").ifEmpty { models.objects().firstOrNull { it.optBoolean("isDefault") }?.str("id") }
+            update {
+                it.copy(
+                    starting = false,
+                    session = thread,
+                    models = models.objects().map { m -> Option(m.str("id"), clean(m.str("displayName")), clean(m.str("description"))) },
+                    model = model,
+                    efforts = efforts(model),
+                    effort = started.str("reasoningEffort").ifEmpty { null } ?: default(model),
+                    modes = MODES,
+                    mode = "ask",
+                )
+            }
+        } finally {
+            update { it.copy(starting = false) }
         }
     }
 
