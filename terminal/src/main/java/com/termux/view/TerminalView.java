@@ -373,13 +373,17 @@ public final class TerminalView extends View {
                 for (int i = 0; i < textLengthInChars; i++) {
                     char firstChar = text.charAt(i);
                     int codePoint;
+                    // Automa: only a valid pair is a code point. A lone low surrogate, or a high one with another
+                    // character after it, gave a value that writeCodePoint() throws for, on the main thread.
                     if (Character.isHighSurrogate(firstChar)) {
-                        if (++i < textLengthInChars) {
-                            codePoint = Character.toCodePoint(firstChar, text.charAt(i));
+                        if (i + 1 < textLengthInChars && Character.isLowSurrogate(text.charAt(i + 1))) {
+                            codePoint = Character.toCodePoint(firstChar, text.charAt(++i));
                         } else {
-                            // At end of string, with no low surrogate following the high:
+                            // No low surrogate following the high:
                             codePoint = TerminalEmulator.UNICODE_REPLACEMENT_CHAR;
                         }
+                    } else if (Character.isLowSurrogate(firstChar)) {
+                        codePoint = TerminalEmulator.UNICODE_REPLACEMENT_CHAR;
                     } else {
                         codePoint = firstChar;
                     }
