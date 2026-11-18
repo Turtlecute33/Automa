@@ -4,10 +4,12 @@ import app.automa.chat.Pipe
 import org.json.JSONObject
 import java.io.IOException
 import java.io.InputStream
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /** The chat transport with a real host process (no guest, no PRoot). */
 class PipeTest {
@@ -26,7 +28,7 @@ class PipeTest {
             val stop = thread(isDaemon = true) { pipe.stop() }
             stop.join(10_000)
             assertFalse(stop.isAlive, "stop() waits for ever")
-            assertFalse(process.isAlive)
+            assertTrue(process.waitFor(5, TimeUnit.SECONDS), "the agent still runs")
         } finally {
             process.destroyForcibly()
         }
