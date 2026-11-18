@@ -45,7 +45,7 @@ class ChatTest {
     private val background = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default)
     private val sent = ArrayList<JSONObject>()
 
-    private fun <D : Driver> D.wired(): D = apply { attach { sent += it } }
+    private fun <D : Driver> D.wired(): D = apply { attach { synchronized(sent) { sent += it } } }
 
     private fun Driver.feed(vararg lines: String) = runBlocking { lines.forEach { receive(JSONObject(it)) } }
 
@@ -164,6 +164,23 @@ class ChatTest {
         val reply = sent.single()
         assertEquals(0, reply.getInt("id"))
         assertEquals("git", reply.getJSONObject("result").getJSONObject("decision").getJSONObject("acceptWithExecpolicyAmendment").getJSONArray("execpolicy_amendment").getString(0))
+    }
+
+    @Test
+    fun codexNoWithANoteAnswersAlsoWhenTheSteerFails() = runBlocking {
+        val d = CodexDriver(dir, FakeGuest()).wired()
+        d.feed(
+            """{"id":7,"method":"item/commandExecution/requestApproval","params":{"threadId":"T","turnId":"U","itemId":"C","command":"rm -rf build",
+               "availableDecisions":["accept","decline","cancel"]}}""",
+        )
+        val ask = assertIs<Ask.Permission>(d.state.value.asks.single())
+        val answering = launch(kotlinx.coroutines.Dispatchers.Default) { d.answer(ask, Answer.Pick(ask.choices[1], "use the other folder")) }
+        while (synchronized(sent) { sent.none { it.optString("method") == "turn/start" } }) kotlinx.coroutines.delay(10)
+        val steer = synchronized(sent) { sent.first { it.optString("method") == "turn/start" } }
+        d.feed("""{"id":${steer.getLong("id")},"error":{"code":-32600,"message":"no active turn"}}""")
+        answering.join()
+        val reply = synchronized(sent) { sent.single { it.optInt("id", -1) == 7 && it.has("result") } }
+        assertEquals("decline", reply.getJSONObject("result").getString("decision"))
     }
 
     @Test

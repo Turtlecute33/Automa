@@ -3,6 +3,7 @@ package app.automa.chat
 import kotlinx.coroutines.CompletableDeferred
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.IOException
 
 /**
  * Codex through `codex app-server` (JSON-RPC over stdio, DESIGN §13, research CX-1 to CX-24). Approvals, questions
@@ -381,9 +382,20 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
         rpc.reply(id, result)
     }
 
-    /** A text with a "No": with "decline" the turn continues and gets it at once (a steer); else after the turn. */
+    /**
+     * A text with a "No": with "decline" the turn continues and gets it at once (a steer); else after the turn. A failed
+     * steer is an error line: the reply to the request must still go, else Codex waits with no card.
+     */
     private suspend fun feedback(decision: Any, text: String) {
-        if (decision == "decline") rpc.call("turn/start", JSONObject().put("threadId", thread).put("input", input(text))) else next = text
+        if (decision != "decline") {
+            next = text
+            return
+        }
+        try {
+            rpc.call("turn/start", JSONObject().put("threadId", thread).put("input", input(text)))
+        } catch (e: IOException) {
+            fail(e)
+        }
     }
 
     override suspend fun send(text: String) = act {
