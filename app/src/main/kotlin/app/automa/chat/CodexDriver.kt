@@ -154,7 +154,7 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
                 }
             }
             "warning" -> note(p.str("message"))
-            "serverRequest/resolved" -> requests.entries.firstOrNull { it.value.first.toString() == p.opt("requestId").toString() }?.key?.let {
+            "serverRequest/resolved" -> requests.entries.firstOrNull { it.value.first == p.opt("requestId") }?.key?.let {
                 requests.remove(it)
                 done(it)
             }
@@ -264,7 +264,13 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
     }
 
     private suspend fun request(id: Any, method: String, p: JSONObject) {
-        val key = "r$id"
+        val key = cardId(id)
+        // A second request with an open id would take the place of the first: an answer must go to the request that its
+        // card shows (review DS-L-11, KM-H-02). An error answer is a "no" (research CX-10).
+        if (key in requests) {
+            rpc.refuse(id, -32600, "The request id is in use")
+            return
+        }
         val card = when (method) {
             "item/commandExecution/requestApproval" -> {
                 val network = p.optJSONObject("networkApprovalContext")

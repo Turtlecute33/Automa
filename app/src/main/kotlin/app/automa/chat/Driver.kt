@@ -155,6 +155,9 @@ abstract class Driver(val dir: String) {
     /** A new list key. */
     protected fun key(prefix: String) = "$prefix-${keys++}"
 
+    /** The card id of the JSON-RPC request [id]: 1 and "1" are two requests, so the type is part of it (review DS-L-11). */
+    protected fun cardId(id: Any) = "r" + if (id is String) JSONObject.quote(id) else id.toString()
+
     protected fun add(entry: Entry) = update { it.copy(entries = limit(it.entries + entry)) }
 
     /** Replaces the entry with [key], or adds one when there is none. */

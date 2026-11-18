@@ -339,6 +339,50 @@ class ChatTest {
     }
 
     @Test
+    fun requestIdsOfOtherTypesAndOpenIdsDoNotMix() {
+        // Review DS-L-11, KM-H-02: the ids 1 and "1" made one card id, and a second request with an open id took the
+        // place of the first, so an answer could go to the request that the card did not show.
+        fun replies() = synchronized(sent) { sent.filter { it.has("result") || it.has("error") } }
+        val codex = CodexDriver(dir, FakeGuest()).wired()
+        val command = """"method":"item/commandExecution/requestApproval","params":{"threadId":"T","turnId":"U","itemId":"C","command":"%s","availableDecisions":["accept","cancel"]}"""
+        codex.feed(
+            """{"id":1,${command.format("make")}}""",
+            """{"id":"1",${command.format("make install")}}""",
+            """{"id":1,${command.format("rm -rf /")}}""",
+        )
+        assertEquals(listOf("$ make", "$ make install"), codex.state.value.asks.map { (it as Ask.Permission).detail })
+        val refused = replies().single()
+        assertTrue(refused.has("error") && refused.get("id") == 1)
+        codex.feed("""{"method":"serverRequest/resolved","params":{"threadId":"T","requestId":"1"}}""")
+        val first = assertIs<Ask.Permission>(codex.state.value.asks.single())
+        assertEquals("$ make", first.detail)
+        runBlocking { codex.answer(first, Answer.Pick(first.choices.first())) }
+        assertEquals(1, replies().last().get("id"))
+
+        synchronized(sent) { sent.clear() }
+        val opencode = OpencodeDriver(dir, FakeGuest()).wired()
+        val permission = """"method":"session/request_permission","params":{"sessionId":"s","toolCall":{"toolCallId":"%s","title":"%s","kind":"execute","status":"pending","rawInput":{}},
+            "options":[{"optionId":"once","kind":"allow_once","name":"Allow once"}]}"""
+        opencode.feed(
+            """{"jsonrpc":"2.0","id":1,${permission.format("c1", "ls")}}""",
+            """{"jsonrpc":"2.0","id":"1",${permission.format("c2", "pwd")}}""",
+            """{"jsonrpc":"2.0","id":1,${permission.format("c3", "rm")}}""",
+            """{"jsonrpc":"2.0","method":"${'$'}/cancel_request","params":{"requestId":"1"}}""",
+        )
+        assertEquals(listOf("Allow ls?"), opencode.state.value.asks.map { (it as Ask.Permission).title })
+        assertEquals(listOf(1, "1"), replies().map { it.get("id") })
+
+        synchronized(sent) { sent.clear() }
+        val claude = ClaudeDriver(dir, FakeGuest()).wired()
+        val tool = """{"type":"control_request","request_id":"p1","request":{"subtype":"can_use_tool","tool_name":"Bash","tool_use_id":"%s","input":{"command":"%s"}}}"""
+        claude.feed(tool.format("t1", "make"), tool.format("t2", "rm -rf /"))
+        val card = assertIs<Ask.Permission>(claude.state.value.asks.single())
+        assertEquals("error", sent.single().getJSONObject("response").getString("subtype"))
+        runBlocking { claude.answer(card, Answer.Pick(card.choices.first())) }
+        assertEquals("t1", sent.last().getJSONObject("response").getJSONObject("response").getString("toolUseID"))
+    }
+
+    @Test
     fun opencodePermissionAndToolMerge() {
         val d = OpencodeDriver(dir, FakeGuest()).wired()
         d.feed(

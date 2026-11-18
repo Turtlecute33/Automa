@@ -65,7 +65,7 @@ class OpencodeDriver(dir: String, @Suppress("unused") private val guest: Guest) 
             "session/update" -> onUpdate(p.optJSONObject("update") ?: return)
             "\$/cancel_request" -> {
                 val id = p.opt("requestId") ?: return
-                requests.entries.firstOrNull { it.value.first.toString() == id.toString() }?.key?.let { card ->
+                requests.entries.firstOrNull { it.value.first == id }?.key?.let { card ->
                     requests.remove(card)
                     done(card)
                     rpc.refuse(id, -32800, "cancelled")
@@ -182,7 +182,13 @@ class OpencodeDriver(dir: String, @Suppress("unused") private val guest: Guest) 
     }
 
     private suspend fun request(id: Any, method: String, p: JSONObject) {
-        val key = "r$id"
+        val key = cardId(id)
+        // A second request with an open id would take the place of the first: an answer must go to the request that its
+        // card shows (review DS-L-11, KM-H-02).
+        if (key in requests) {
+            rpc.refuse(id, -32600, "The request id is in use")
+            return
+        }
         val card: Ask = when (method) {
             "session/request_permission" -> {
                 val call = p.optJSONObject("toolCall") ?: JSONObject()

@@ -266,20 +266,24 @@ class ClaudeDriver(dir: String, private val guest: Guest) : Driver(dir) {
     private suspend fun request(id: String, request: JSONObject) {
         when (request.str("subtype")) {
             "can_use_tool" -> {
+                // A second request with an open id would take the place of the first (review DS-L-11).
+                if (id in requests) return refuse(id, "The request id is in use")
                 requests[id] = request
                 ask(ask(id, request))
             }
             "elicitation" -> write(response(id, JSONObject().put("action", "decline")))
             // A dialog kind that the app did not declare: no answer (research CC-1).
             "request_user_dialog" -> Unit
-            else -> write(
-                JSONObject().put("type", "control_response").put(
-                    "response",
-                    JSONObject().put("subtype", "error").put("request_id", id).put("error", "Not supported by Automa"),
-                ),
-            )
+            else -> refuse(id, "Not supported by Automa")
         }
     }
+
+    private suspend fun refuse(id: String, error: String) = write(
+        JSONObject().put("type", "control_response").put(
+            "response",
+            JSONObject().put("subtype", "error").put("request_id", id).put("error", error),
+        ),
+    )
 
     /** The card for a `can_use_tool` request (research CC-13, CC-16, CC-17). */
     private fun ask(id: String, r: JSONObject): Ask {
