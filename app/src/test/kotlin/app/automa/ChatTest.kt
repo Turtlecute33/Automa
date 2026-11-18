@@ -197,6 +197,16 @@ class ChatTest {
     }
 
     @Test
+    fun codexFileApprovalWithNoFilesSaysSo() {
+        val d = CodexDriver(dir, FakeGuest()).wired()
+        d.feed("""{"id":1,"method":"item/fileChange/requestApproval","params":{"threadId":"T","turnId":"U","itemId":"X","reason":null}}""")
+        val ask = assertIs<Ask.Permission>(d.state.value.asks.single())
+        assertNull(ask.diff)
+        assertTrue(ask.caution)
+        assertTrue(ask.message!!.isNotEmpty())
+    }
+
+    @Test
     fun codexPlanEndsWithAnApprovalCard() {
         val d = CodexDriver(dir, FakeGuest()).wired()
         runBlocking { d.select(app.automa.chat.Setting.Mode, "plan") }

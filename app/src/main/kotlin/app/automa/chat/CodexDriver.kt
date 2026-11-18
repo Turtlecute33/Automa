@@ -257,16 +257,23 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
                     feedback = true,
                 )
             }
-            "item/fileChange/requestApproval" -> Ask.Permission(
-                key, "Change these files?", clean(p.str("reason")), changes[p.str("itemId")]?.let { diff(it, dir) },
-                listOf(
-                    Choice("accept", "Yes", Choice.Kind.Allow),
-                    Choice("acceptForSession", "Yes, and do not ask again for these files", Choice.Kind.Always),
-                    Choice("decline", "No, continue without it", Choice.Kind.Deny),
-                    Choice("cancel", "No, and stop", Choice.Kind.Deny),
-                ),
-                feedback = true,
-            )
+            "item/fileChange/requestApproval" -> {
+                // The request has no files: they come from the item before it. With no item, the card must not look
+                // like an empty change.
+                val diff = changes[p.str("itemId")]?.let { diff(it, dir) }
+                Ask.Permission(
+                    key, "Change these files?", clean(p.str("reason")), diff,
+                    listOf(
+                        Choice("accept", "Yes", Choice.Kind.Allow),
+                        Choice("acceptForSession", "Yes, and do not ask again for these files", Choice.Kind.Always),
+                        Choice("decline", "No, continue without it", Choice.Kind.Deny),
+                        Choice("cancel", "No, and stop", Choice.Kind.Deny),
+                    ),
+                    feedback = true,
+                    message = if (diff == null) "Codex did not send the files of this change." else null,
+                    caution = diff == null,
+                )
+            }
             "item/permissions/requestApproval" -> Ask.Permission(
                 key, "Give Codex more permissions?",
                 listOfNotNull(Tools.text(p.opt("permissions")), clean(p.str("reason")).ifEmpty { null }).joinToString("\n\n"),
