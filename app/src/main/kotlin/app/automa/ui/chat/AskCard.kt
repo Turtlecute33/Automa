@@ -86,6 +86,8 @@ private fun PermissionBody(ask: Ask.Permission, onAnswer: (Answer) -> Unit) {
     ask.diff?.let { DiffView(it, maxLines = Diff.MAX_LINES) }
     if (ask.feedback) NoteField(note, { note = it }, "Note for the agent if you deny (optional)")
     Choices(ask.choices, ask.caution) { onAnswer(Answer.Pick(it, if (it.kind == Choice.Kind.Deny) note.trim() else "")) }
+    // A request with no choices must not block the chat (review DS-L-23, KM-M-34).
+    if (ask.choices.isEmpty()) OutlinedButton(onClick = { onAnswer(Answer.Dismiss) }, modifier = Modifier.fillMaxWidth()) { Text("Dismiss") }
 }
 
 @Composable
