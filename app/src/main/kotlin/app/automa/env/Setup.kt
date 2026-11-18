@@ -222,7 +222,12 @@ class Setup(private val env: Env, private val cache: File, private val tff: Tff,
         }
     }
 
-    private fun installedOpencode() = runCatching { opencodeMarker.readText().trim() }.getOrNull()
+    /**
+     * The opencode version from its marker, or null when the program is missing: then Update installs it again (a
+     * marker with no program kept the state Ready, and Update saw no newer version).
+     */
+    private fun installedOpencode() =
+        runCatching { opencodeMarker.readText().trim() }.getOrNull()?.takeIf { env.file("/usr/local/bin/opencode").isFile }
 
     /**
      * Deletes the guest system, the repositories in it included. The secrets stay. A rename comes first, so that a
