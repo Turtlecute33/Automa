@@ -1032,7 +1032,9 @@ public final class TerminalView extends View {
     }
 
     public int getCursorY(float y) {
-        return (int) (((y - 40) / mRenderer.mFontLineSpacing) + mTopRow);
+        // Automa: the same row as getColumnAndRow() and the renderer (row r is from mFontLineSpacingAndAscent +
+        // r * mFontLineSpacing). A fixed 40 px gave the row above at some densities and font sizes (DS-L-67).
+        return (int) ((y - mRenderer.mFontLineSpacingAndAscent) / mRenderer.mFontLineSpacing) + mTopRow;
     }
 
     public int getPointX(int cx) {
