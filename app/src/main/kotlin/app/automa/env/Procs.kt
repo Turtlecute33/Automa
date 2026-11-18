@@ -28,19 +28,29 @@ object Procs {
         }
     }
 
-    /** [root] and its descendants, root first. */
-    fun tree(root: Int): List<Int> {
-        val children = HashMap<Int, MutableList<Int>>()
-        for (pid in pids()) parent(read("/proc/$pid/stat"))?.let { children.getOrPut(it) { mutableListOf() } += pid }
-        val out = ArrayList<Int>()
+    /**
+     * [root] and its descendants, root first. A guest process that leaves the tree (setsid and a double fork give it
+     * the parent 1) is still traced by PRoot: a process whose tracer is in the tree is in it too (review DS-L-74).
+     */
+    fun tree(root: Int): List<Int> =
+        tree(root, pids().associateWith { listOfNotNull(parent(read("/proc/$it/stat")), tracer(read("/proc/$it/status"))) })
+
+    /** The tree of [root] when each pid in [up] is below the pids of its list (its parent and its tracer). */
+    fun tree(root: Int, up: Map<Int, List<Int>>): List<Int> {
+        val below = HashMap<Int, MutableList<Int>>()
+        for ((pid, parents) in up) parents.forEach { below.getOrPut(it) { mutableListOf() } += pid }
+        val out = LinkedHashSet<Int>()
         val todo = ArrayDeque(listOf(root))
         while (todo.isNotEmpty()) {
             val pid = todo.removeFirst()
-            out += pid
-            children[pid]?.let(todo::addAll)
+            if (out.add(pid)) below[pid]?.let(todo::addAll)
         }
-        return out
+        return out.toList()
     }
+
+    /** The tracer PID in a /proc/<pid>/status text, or null when no process traces it. */
+    fun tracer(status: String): Int? = status.lineSequence().firstOrNull { it.startsWith("TracerPid:") }
+        ?.substringAfter(':')?.trim()?.toIntOrNull()?.takeIf { it > 0 }
 
     /** The parent PID in a /proc/<pid>/stat line: "pid (comm) state ppid …". comm can hold spaces and ")". */
     fun parent(stat: String): Int? = stat.substringAfterLast(')').trim().split(' ').getOrNull(1)?.toIntOrNull()

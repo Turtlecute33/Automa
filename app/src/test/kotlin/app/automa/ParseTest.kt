@@ -120,6 +120,24 @@ class ParseTest {
     }
 
     @Test
+    fun procTreeKeepsTracedOrphans() {
+        // 10 is PRoot, 11 its child, 12 a grandchild. 13 left the tree (setsid and a double fork: parent 1), but PRoot
+        // still traces it. 20 and 21 are another tree.
+        val up = mapOf(
+            10 to listOf(1), 11 to listOf(10, 10), 12 to listOf(11, 10), 13 to listOf(1, 10),
+            20 to listOf(1), 21 to listOf(20, 20),
+        )
+        val tree = Procs.tree(10, up)
+        assertEquals(10, tree.first())
+        assertEquals(setOf(10, 11, 12, 13), tree.toSet())
+        assertEquals(tree.size, tree.toSet().size)
+        assertEquals(listOf(20, 21), Procs.tree(20, up))
+        assertEquals(10, Procs.tracer("Name:\tsh\nState:\tS (sleeping)\nTracerPid:\t10\nUid:\t10123\n"))
+        assertNull(Procs.tracer("Name:\tsh\nTracerPid:\t0\n"))
+        assertNull(Procs.tracer(""))
+    }
+
+    @Test
     fun resolvConf() {
         val net = listOf("192.0.2.1", "192.0.2.2", "192.0.2.3", "192.0.2.4").map(InetAddress::getByName)
         val private = listOf(InetAddress.getByName("198.51.100.9"))
