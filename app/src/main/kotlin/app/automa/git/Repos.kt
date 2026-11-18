@@ -12,6 +12,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.net.URI
+import java.nio.file.Files
 
 @Immutable
 data class Repo(val name: String, val branch: String?)
@@ -21,12 +22,7 @@ class Repos(private val env: Env) {
     private val _list = MutableStateFlow<List<Repo>>(emptyList())
     val list: StateFlow<List<Repo>> = _list.asStateFlow()
 
-    suspend fun refresh() = withContext(Dispatchers.IO) {
-        _list.value = env.repos.listFiles().orEmpty()
-            .filter { it.isDirectory && File(it, ".git").exists() }
-            .map { Repo(it.name, branch(it)) }
-            .sortedBy { it.name.lowercase() }
-    }
+    suspend fun refresh() = withContext(Dispatchers.IO) { _list.value = scan(env.repos) }
 
     /** Clones [input] (`owner/repo` or an https URL) into `/root/repos/<name>`. Returns the name. */
     suspend fun clone(input: String, line: (String) -> Unit): String = env.foreground {
@@ -58,15 +54,24 @@ class Repos(private val env: Env) {
         refresh()
     }
 
-    private fun branch(dir: File): String? {
-        val head = Tree.readSmall(File(dir, ".git/HEAD"))?.trim() ?: return null
-        return if (head.startsWith("ref: refs/heads/")) head.removePrefix("ref: refs/heads/") else head.take(7)
-    }
-
     /** The guest command for a clone, and the folder name. */
     data class Source(val program: List<String>, val name: String)
 
     companion object {
+        /**
+         * The repositories in [dir], by name. Not a symbolic link: a guest program can link another folder (for example
+         * the home folder) into the list, and a chat there would get that folder (review KM-M-05).
+         */
+        fun scan(dir: File): List<Repo> = dir.listFiles().orEmpty()
+            .filter { !Files.isSymbolicLink(it.toPath()) && it.isDirectory && File(it, ".git").exists() }
+            .map { Repo(it.name, branch(it)) }
+            .sortedBy { it.name.lowercase() }
+
+        private fun branch(dir: File): String? {
+            val head = Tree.readSmall(File(dir, ".git/HEAD"))?.trim() ?: return null
+            return if (head.startsWith("ref: refs/heads/")) head.removePrefix("ref: refs/heads/") else head.take(7)
+        }
+
         private val short = Regex("[A-Za-z0-9][A-Za-z0-9-]{0,38}/([A-Za-z0-9._-]{1,100})")
 
         /**

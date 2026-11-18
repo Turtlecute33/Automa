@@ -1,6 +1,8 @@
 package app.automa
 
 import app.automa.env.Tree
+import app.automa.git.Repo
+import app.automa.git.Repos
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermissions
@@ -49,6 +51,18 @@ class TreeTest {
         if (reader.isAlive) fifo.outputStream().close()
         assertFalse(reader.isAlive)
         assertNull(result)
+    }
+
+    @Test
+    fun repositoryListSkipsLinks() {
+        val repos = File(dir, "repos")
+        File(repos, "demo/.git").mkdirs()
+        File(repos, "demo/.git/HEAD").writeText("ref: refs/heads/main\n")
+        File(repos, "plain").mkdirs()
+        // A guest program can link a folder outside the repositories (for example the home folder) into the list.
+        File(dir, "home/.git").mkdirs()
+        Files.createSymbolicLink(File(repos, "wide").toPath(), File(dir, "home").toPath())
+        assertEquals(listOf(Repo("demo", "main")), Repos.scan(repos))
     }
 
     @Test
