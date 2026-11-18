@@ -549,7 +549,8 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
                     if (a?.str("action") == "deny") Choice(id, "No, and block $host in the future", Choice.Kind.Deny)
                     else Choice(id, "Yes, and allow $host in the future", Choice.Kind.Always)
                 }
-                else -> Choice(id, clean(d.toString()).take(80), Choice.Kind.Allow)
+                // A new decision type can have any effect: not the style of a Yes (review KM-M-29).
+                else -> Choice(id, clean(d.toString()).take(80), Choice.Kind.Other)
             }
         }
 

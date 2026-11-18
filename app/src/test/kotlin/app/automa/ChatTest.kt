@@ -167,6 +167,13 @@ class ChatTest {
     }
 
     @Test
+    fun anUnknownCodexDecisionIsNotAnAllow() {
+        // A new decision type can have any effect: it must not look like a plain Yes (review KM-M-29).
+        val choice = CodexDriver.decisionChoice(0, JSONObject().put("grantRootForever", JSONObject()))
+        assertEquals(app.automa.chat.Choice.Kind.Other, choice.kind)
+    }
+
+    @Test
     fun codexNoWithANoteAnswersAlsoWhenTheSteerFails() = runBlocking {
         val d = CodexDriver(dir, FakeGuest()).wired()
         d.feed(

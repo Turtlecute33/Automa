@@ -110,7 +110,8 @@ sealed interface Ask {
 
 @Immutable
 data class Choice(val id: String, val label: String, val kind: Kind) {
-    enum class Kind { Allow, Always, Deny }
+    /** [Other]: an answer whose effect the app does not know, so it looks neither like a Yes nor like a No. */
+    enum class Kind { Allow, Always, Deny, Other }
 }
 
 @Immutable

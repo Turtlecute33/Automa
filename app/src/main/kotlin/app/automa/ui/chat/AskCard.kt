@@ -111,7 +111,7 @@ private fun Choices(choices: List<Choice>, caution: Boolean, onPick: (Choice) ->
             when (choice.kind) {
                 Choice.Kind.Allow -> if (caution) OutlinedButton(onClick = click, modifier = wide) { Text(choice.label) } else Button(onClick = click, modifier = wide) { Text(choice.label) }
                 Choice.Kind.Always -> FilledTonalButton(onClick = click, modifier = wide) { Text(choice.label) }
-                Choice.Kind.Deny -> OutlinedButton(onClick = click, modifier = wide) { Text(choice.label) }
+                Choice.Kind.Deny, Choice.Kind.Other -> OutlinedButton(onClick = click, modifier = wide) { Text(choice.label) }
             }
         }
     }
