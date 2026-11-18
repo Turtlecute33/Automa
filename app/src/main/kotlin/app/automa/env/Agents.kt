@@ -116,7 +116,7 @@ class Agents(private val env: Env) {
         _work.value = null
     }
 
-    /** The newest stable release of [agent], with the SHA-256 from the publisher (as for opencode, review SEC-9). */
+    /** The newest stable release of [agent], with the SHA-256 from the publisher (as for opencode, review SEC-9b). */
     suspend fun latest(agent: Agent): AgentRelease = when (agent) {
         Agent.Claude -> {
             val version = Download.text(Pins.CLAUDE_STABLE, 64).trim()

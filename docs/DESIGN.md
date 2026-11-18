@@ -59,7 +59,7 @@ The single source of truth for Automa. Findings with IDs are in `research/`.
   `api.github.com/repos/anomalyco/opencode/releases?per_page=30`. Not `releases/latest`: the
   maintainers mark the 1.x line as "latest" (OC-1). No drafts, no pre-releases; the version must be
   plain `x.y.z` and newer than the installed one (no downgrade). The SHA-256 is the `digest` of the
-  `opencode-linux-arm64-musl.tar.gz` asset in the same answer (review SEC-9). opencode extracts to a
+  `opencode-linux-arm64-musl.tar.gz` asset in the same answer (review SEC-9b). opencode extracts to a
   temporary folder and then replaces `/usr/local/bin/opencode` with a rename, so a failure keeps the
   old program and open sessions continue.
 - Agents (`env/Agents.kt`, research F-10), on demand, under the setup mutex, only on a ready guest:
@@ -70,7 +70,7 @@ The single source of truth for Automa. Findings with IDs are in `research/`.
     `/etc/automa-<command>`.
   - Update (Settings → Update): each installed agent goes to its newest stable release, with the
     SHA-256 from the publisher (Claude Code: `stable` and its manifests; Codex: the `digest` of
-    the GitHub asset), as for opencode (SEC-9).
+    the GitHub asset), as for opencode (SEC-9b).
   - Remove: deletes the program and the version file. The login and the settings stay in
     `~/.claude` and `~/.codex`.
 - PRoot needs `ptrace`. When the system blocks it (GrapheneOS "Native code debugging" off), PRoot

@@ -102,7 +102,7 @@ limit, https redirects), the tar reader, argv-only guest commands with `--` befo
 secrets only in the environment, no-op loggers, no personalised learning on the terminal and the key
 fields, `FLAG_SECURE` on the keys screen and its dialog.
 
-## SEC-9 [Low] [accepted] Update: the opencode SHA-256 comes from GitHub, not from the APK
+## SEC-9b [Low] [accepted] Update: the opencode SHA-256 comes from GitHub, not from the APK
 
 PROBLEM: the setup checks opencode with a SHA-256 in the APK. The in-app update cannot: it reads the
 `digest` of the asset from the GitHub release data. A compromised GitHub account of opencode or
@@ -135,7 +135,7 @@ PROBLEM: the agent install runs a large program from a publisher, and the link h
 program (also code from a cloned repository) ask Automa to open a page.
 FIX: the install takes a pinned version with a pinned SHA-256 of the .zst file (and, for Claude
 Code, of the program), checked before zstd unpacks it; an update takes the publisher's SHA-256
-(as SEC-9). The write is a rename, under the setup mutex, on a ready guest only (SEC-7). The link
+(as SEC-9b). The write is a rename, under the setup mutex, on a ready guest only (SEC-7). The link
 hook accepts only one https link (at most 4096 characters, no spaces or control characters), shows
 the host, and opens the browser only after a tap. The watcher starts only when the folder exists.
 Codex runs with no sandbox (F-10); the Android app sandbox is the limit, as for the other agents.
