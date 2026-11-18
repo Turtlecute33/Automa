@@ -175,6 +175,17 @@ class ChatTest {
     }
 
     @Test
+    fun claudeCommandsChangedReplacesTheList() {
+        val d = ClaudeDriver(dir, FakeGuest()).wired()
+        d.feed(
+            """{"type":"system","subtype":"init","slash_commands":["compact","old"],"terminal_slash_commands":[]}""",
+            """{"type":"system","subtype":"commands_changed","commands":[{"name":"compact","description":"Compact"},{"name":"review","description":"Review the change"}]}""",
+        )
+        assertEquals(listOf("compact", "review"), d.state.value.commands.map { it.id })
+        assertEquals("Review the change", d.state.value.commands.last().description)
+    }
+
+    @Test
     fun claudeTrustComesFromItsOwnStore() {
         val config = """{"projects":{"/root/repos":{"hasTrustDialogAccepted":true},"/root/other":{"hasTrustDialogAccepted":false}}}"""
         assertTrue(ClaudeDriver.trusted(config, "/root/repos/demo"))

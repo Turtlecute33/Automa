@@ -61,7 +61,7 @@ class ClaudeDriver(dir: String, private val guest: Guest) : Driver(dir) {
         try {
             val answer = withTimeout(START_MS) { control(JSONObject().put("subtype", "initialize")) }
             models = answer.optJSONArray("models") ?: JSONArray()
-            val commands = answer.optJSONArray("commands").objects().map { Option(it.str("name"), it.str("name"), clean(it.str("description"))) }
+            val commands = commandOptions(answer.optJSONArray("commands"))
             update { s ->
                 val model = s.model ?: models.objects().firstOrNull { it.str("value") == "default" }?.str("value")
                 s.copy(
@@ -253,6 +253,8 @@ class ClaudeDriver(dir: String, private val guest: Guest) : Driver(dir) {
             "local_command_output" -> add(Entry.Text(key("out"), cut(clean(json.str("content")), MAX_TEXT)))
             "informational" -> note(json.str("content"), error = json.str("level") == "warning")
             "task_notification" -> json.str("summary").takeIf { it.isNotBlank() }?.let { note(it) }
+            // A new full list of the commands (research CC-4, review KM-M-38).
+            "commands_changed" -> json.optJSONArray("commands")?.let { list -> update { it.copy(commands = commandOptions(list)) } }
         }
     }
 
@@ -409,6 +411,8 @@ class ClaudeDriver(dir: String, private val guest: Guest) : Driver(dir) {
             }
             return false
         }
+
+        private fun commandOptions(commands: JSONArray?) = commands.objects().map { Option(it.str("name"), it.str("name"), clean(it.str("description"))) }
 
         fun modelOptions(models: JSONArray) = models.objects().map {
             Option(it.str("value"), clean(it.str("displayName").ifEmpty { it.str("value") }), clean(it.str("description")))
