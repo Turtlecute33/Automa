@@ -174,6 +174,16 @@ class ChatTest {
     }
 
     @Test
+    fun codexNewAndDeletedFilesHaveNoExtraLine() {
+        val changes = org.json.JSONArray(
+            """[{"path":"$dir/a.txt","kind":{"type":"add"},"diff":"one\ntwo\n"},{"path":"$dir/b.txt","kind":{"type":"delete"},"diff":"old\n"},
+               {"path":"$dir/c.txt","kind":{"type":"add"},"diff":""}]""",
+        )
+        val files = CodexDriver.diff(changes, dir).files
+        assertEquals(listOf(listOf("+one", "+two"), listOf("-old"), emptyList()), files.map { it.lines })
+    }
+
+    @Test
     fun codexNoWithANoteAnswersAlsoWhenTheSteerFails() = runBlocking {
         val d = CodexDriver(dir, FakeGuest()).wired()
         d.feed(

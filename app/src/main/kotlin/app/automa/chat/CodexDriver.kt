@@ -571,9 +571,11 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
         fun diff(changes: JSONArray, dir: String): Diff = Diff(changes.objects().map { c ->
             val text = clean(c.str("diff"))
             val path = Tools.short(c.str("path"), dir)
+            // The end of the last line is not one more line (review KM-M-37).
+            val lines = if (text.isEmpty()) emptyList() else text.removeSuffix("\n").lines()
             when (c.optJSONObject("kind")?.str("type")) {
-                "add" -> Diff.File(path, text.lines().map { "+$it" })
-                "delete" -> Diff.File(path, text.lines().map { "-$it" })
+                "add" -> Diff.File(path, lines.map { "+$it" })
+                "delete" -> Diff.File(path, lines.map { "-$it" })
                 else -> Diff.unified(path, text).files.first()
             }
         })
