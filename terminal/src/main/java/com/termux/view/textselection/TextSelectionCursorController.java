@@ -320,9 +320,8 @@ public class TextSelectionCursorController implements CursorController {
                 if (cx > col && cx < cend) {
                     return cend;
                 }
-                if (cend == col) {
-                    return col;
-                }
+                // Automa: a zero-width character (a combining mark) has no column of its own, so go on. Upstream gave
+                // back its column here, so a drag handle could not go past the first one (KM-Q-09).
                 col = cend;
             }
         }
