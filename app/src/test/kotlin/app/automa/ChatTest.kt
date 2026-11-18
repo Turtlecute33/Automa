@@ -184,6 +184,15 @@ class ChatTest {
     }
 
     @Test
+    fun aFreeListAnswerIsAList() {
+        // A form field of type array with no options: opencode refuses a string there (review KM-M-37).
+        val schema = JSONObject("""{"properties":{"tags":{"type":"array","title":"Tags","items":{"type":"string"}}}}""")
+        val questions = app.automa.chat.Forms.questions(schema)
+        val content = app.automa.chat.Forms.content(questions, listOf(Answer.Reply(emptyList(), "fast")))
+        assertEquals(listOf("fast"), content.getJSONArray("tags").strings())
+    }
+
+    @Test
     fun codexNoWithANoteAnswersAlsoWhenTheSteerFails() = runBlocking {
         val d = CodexDriver(dir, FakeGuest()).wired()
         d.feed(

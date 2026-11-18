@@ -123,7 +123,8 @@ object Forms {
         questions.forEachIndexed { i, q ->
             val reply = replies.getOrNull(i) ?: return@forEachIndexed
             when {
-                q.options.isEmpty() -> if (reply.other.isNotBlank()) content.put(q.id, reply.other)
+                // A field of type array needs a list also with no options (review KM-M-37).
+                q.options.isEmpty() -> if (reply.other.isNotBlank()) content.put(q.id, if (q.multi) JSONArray().put(reply.other) else reply.other)
                 q.multi -> {
                     if (reply.labels.isNotEmpty()) content.put(q.id, JSONArray(reply.labels))
                     if (reply.other.isNotBlank()) content.put("${q.id}_custom", reply.other)
