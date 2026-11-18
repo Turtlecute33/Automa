@@ -123,8 +123,10 @@ fun KeysScreen(nav: Navigator) {
                     clearing = false
                     error = null
                     app.scope.launch {
-                        app.secrets.clear()
-                        app.prefs.setLogin(null)
+                        runCatching {
+                            app.secrets.clear()
+                            app.prefs.setLogin(null)
+                        }.onFailure { error = userText(it) }
                     }
                 }) { Text("Delete all") }
             },
