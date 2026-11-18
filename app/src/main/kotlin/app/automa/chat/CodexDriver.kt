@@ -45,7 +45,7 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
     private suspend fun decide(): Boolean {
         val config = guest.read(CONFIG, 1 shl 20).orEmpty()
         val table = "[projects.\"${toml(dir)}\"]"
-        if (table in config) return true
+        if (header(config, table)) return true
         val answer = CompletableDeferred<Answer>()
         trust = answer
         ask(
@@ -58,7 +58,7 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
         )
         val pick = answer.await() as? Answer.Pick ?: return false
         // Codex must not start when the answer is not saved: thread/start would trust the folder (review SEC-19).
-        if (!guest.append(CONFIG, "\n$table\ntrust_level = \"${pick.choice.id}\"\n") || table !in guest.read(CONFIG, 1 shl 20).orEmpty()) {
+        if (!guest.append(CONFIG, "\n$table\ntrust_level = \"${pick.choice.id}\"\n") || !header(guest.read(CONFIG, 1 shl 20).orEmpty(), table)) {
             end("Automa could not save the trust answer in ~/.codex/config.toml, so Codex did not start.")
             return false
         }
@@ -524,6 +524,12 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
         )
 
         private fun input(text: String) = JSONArray().put(JSONObject().put("type", "text").put("text", text))
+
+        /** [table] as a header line of [config]; the same text in a comment does not count (review KM-M-20). */
+        private fun header(config: String, table: String) = config.lines().any { line ->
+            val rest = line.trim().takeIf { it.startsWith(table) }?.drop(table.length)?.trimStart()
+            rest != null && (rest.isEmpty() || rest.startsWith("#"))
+        }
 
         /** A TOML basic string body. */
         private fun toml(text: String) = text.replace("\\", "\\\\").replace("\"", "\\\"")

@@ -462,6 +462,24 @@ class ChatTest {
     }
 
     @Test
+    fun codexTrustTableInACommentDoesNotCount() = runBlocking {
+        val config = "/root/.codex/config.toml"
+        // A header with a comment after it counts.
+        val known = CodexDriver(dir, FakeGuest(mutableMapOf(config to "[projects.\"$dir\"] # mine\ntrust_level = \"trusted\"\n"))).wired()
+        assertTrue(kotlinx.coroutines.withTimeout(5000) { known.prepare() })
+        // Only a comment: Codex has no decision, so the card must come (review KM-M-20).
+        val guest = FakeGuest(mutableMapOf(config to "# [projects.\"$dir\"]\n"))
+        val d = CodexDriver(dir, guest).wired()
+        val started = background.async { d.prepare() }
+        kotlinx.coroutines.withTimeout(5000) { while (d.state.value.asks.isEmpty() && !started.isCompleted) kotlinx.coroutines.delay(10) }
+        val asked = d.state.value.asks.isNotEmpty()
+        if (asked) d.answer(d.state.value.asks.single(), Answer.Pick(app.automa.chat.Choice("untrusted", "Do not trust", app.automa.chat.Choice.Kind.Deny)))
+        started.await()
+        assertTrue(asked)
+        assertTrue("\n[projects.\"$dir\"]\ntrust_level = \"untrusted\"" in guest.files[config].orEmpty())
+    }
+
+    @Test
     fun twoCodexChatsInOneFolderAskOnce() {
         // Two trust tables for one folder make ~/.codex/config.toml invalid TOML, and Codex then does not start at all.
         val guest = FakeGuest()
