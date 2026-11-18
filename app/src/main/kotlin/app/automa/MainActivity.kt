@@ -56,7 +56,8 @@ class MainActivity : ComponentActivity() {
                     if (!ready) return@Surface
                     val lockOn by app.prefs.lock.collectAsStateWithLifecycle()
                     LaunchedEffect(lockOn) {
-                        // A lock that the user turns on now starts at the next return to the app.
+                        // A lock that the user turns on now does not lock the app at once: it starts after more than a
+                        // minute away from the app (onStart), or with a new activity (a cold start, a rotation).
                         if (!lockOn) locked = false
                     }
                     if (lockOn && locked) LockScreen(::unlock) else AppNav(nav)

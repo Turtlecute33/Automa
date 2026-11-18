@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.automa.BuildConfig
 import app.automa.app
@@ -66,7 +67,13 @@ fun SettingsScreen(nav: Navigator) {
     var resetting by remember { mutableStateOf(false) }
     var resetRunning by remember { mutableStateOf(false) }
     var resetError by remember { mutableStateOf<String?>(null) }
-    val secure = remember { context.getSystemService(KeyguardManager::class.java).isDeviceSecure }
+    val keyguard = remember { context.getSystemService(KeyguardManager::class.java) }
+    var secure by remember { mutableStateOf(keyguard.isDeviceSecure) }
+    // The user can set or remove the screen lock in the system settings and come back (review DS-L-20).
+    LifecycleResumeEffect(Unit) {
+        secure = keyguard.isDeviceSecure
+        onPauseOrDispose {}
+    }
 
     Scaffold(
         topBar = {
