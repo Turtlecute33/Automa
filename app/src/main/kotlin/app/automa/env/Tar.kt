@@ -30,7 +30,7 @@ object Tar {
         while (true) {
             if (!readBlock(input, header)) break
             if (header.all { it == 0.toByte() }) break
-            if (octal(header, 148, 8) != checksum(header)) throw IOException("Damaged archive")
+            if (octal(header, 148, 8) != checksum(header).toLong()) throw IOException("Damaged archive")
             val type = header[156].toInt().toChar()
             val size = size(header)
             var name = longName ?: entryName(header)
@@ -63,7 +63,7 @@ object Tar {
                 '5' -> {
                     if (target.exists() && !inside(root, target.canonicalFile)) throw IOException("Archive entry outside the folder")
                     target.mkdirs()
-                    setMode(target, octal(header, 100, 8) or 0b111_000_000)
+                    setMode(target, octal(header, 100, 8).toInt() or 0b111_000_000)
                 }
                 '2' -> {
                     Files.deleteIfExists(path)
@@ -78,7 +78,7 @@ object Tar {
                     Files.deleteIfExists(path)
                     target.outputStream().use { out -> copy(input, out, size) }
                     padding(input, size)
-                    setMode(target, octal(header, 100, 8) or 0b110_000_000)
+                    setMode(target, octal(header, 100, 8).toInt() or 0b110_000_000)
                 }
                 else -> { skip(input, size); continue }
             }
@@ -107,11 +107,11 @@ object Tar {
     private fun size(h: ByteArray): Long {
         // GNU base-256 for sizes of 8 GiB and more.
         if (h[124].toInt() and 0x80 != 0) return (125 until 136).fold(0L) { acc, i -> (acc shl 8) or (h[i].toLong() and 0xff) }
-        return octal(h, 124, 12).toLong()
+        return octal(h, 124, 12)
     }
 
-    private fun octal(h: ByteArray, off: Int, len: Int): Int =
-        text(h, off, len).trim().ifEmpty { "0" }.toLong(8).toInt()
+    /** A Long: a size of 2 GiB and more does not fit an Int (review DS-L-33). */
+    private fun octal(h: ByteArray, off: Int, len: Int): Long = text(h, off, len).trim().ifEmpty { "0" }.toLong(8)
 
     private fun checksum(h: ByteArray): Int =
         h.indices.sumOf { if (it in 148 until 156) ' '.code else h[it].toInt() and 0xff }

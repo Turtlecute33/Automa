@@ -5,6 +5,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.nio.file.Files
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -93,6 +94,15 @@ class TarTest {
     }
 
     @Test
+    fun skipsAnEntryOf2GiBOrMore() {
+        val big = (1L shl 31) + 512
+        val head = Builder().apply { entry("big", '0', size = big) }.out.toByteArray()
+        val tail = archive { entry("b", '0', "x") }
+        assertEquals(1, Tar.extract(Joined(head, big, tail), dir, only = setOf("b")))
+        assertEquals("x", File(dir, "b").readText())
+    }
+
+    @Test
     fun refusesADamagedHeader() {
         val tar = archive { entry("file", '0', "x") }
         tar[0] = 'g'.code.toByte()
@@ -109,7 +119,7 @@ class TarTest {
     private class Builder {
         val out = ByteArrayOutputStream()
 
-        fun entry(name: String, type: Char, data: String = "", link: String = "", mode: String = "0644") {
+        fun entry(name: String, type: Char, data: String = "", link: String = "", mode: String = "0644", size: Long? = null) {
             val bytes = data.toByteArray()
             val h = ByteArray(512)
             fun put(off: Int, len: Int, text: String) = text.toByteArray().copyInto(h, off, 0, minOf(len, text.length))
@@ -117,7 +127,7 @@ class TarTest {
             put(100, 8, "$mode\u0000".padStart(8, '0'))
             put(108, 8, "0000000\u0000")
             put(116, 8, "0000000\u0000")
-            put(124, 12, bytes.size.toString(8).padStart(11, '0') + "\u0000")
+            put(124, 12, (size ?: bytes.size.toLong()).toString(8).padStart(11, '0') + "\u0000")
             put(136, 12, "00000000000\u0000")
             h[156] = type.code.toByte()
             put(157, 100, link)
@@ -129,6 +139,45 @@ class TarTest {
             out.write(h)
             out.write(bytes)
             out.write(ByteArray((512 - bytes.size % 512) % 512))
+        }
+    }
+
+    /** [head], then [zeros] zero bytes that skip() passes at once, then [tail]. */
+    private class Joined(private val head: ByteArray, private var zeros: Long, private val tail: ByteArray) : InputStream() {
+        private var pos = 0
+
+        override fun read(): Int {
+            val b = ByteArray(1)
+            return if (read(b, 0, 1) < 0) -1 else b[0].toInt() and 0xff
+        }
+
+        override fun read(b: ByteArray, off: Int, len: Int): Int {
+            if (len == 0) return 0
+            if (pos < head.size) {
+                val n = minOf(len, head.size - pos)
+                head.copyInto(b, off, pos, pos + n)
+                pos += n
+                return n
+            }
+            if (zeros > 0) {
+                val n = minOf(len.toLong(), zeros).toInt()
+                b.fill(0, off, off + n)
+                zeros -= n
+                return n
+            }
+            val t = pos - head.size
+            if (t >= tail.size) return -1
+            val n = minOf(len, tail.size - t)
+            tail.copyInto(b, off, t, t + n)
+            pos += n
+            return n
+        }
+
+        override fun skip(n: Long): Long {
+            if (pos < head.size || zeros == 0L) return super.skip(n)
+            val k = minOf(n, zeros)
+            zeros -= k
+            return k
         }
     }
 
