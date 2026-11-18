@@ -319,4 +319,13 @@ class TerminalTest {
         feed("\u001B[2;1H\u001B[L")
         assertEquals("0\n\n1\n3", term.screen.getSelectedText(0, 0, 79, 3))
     }
+
+    @Test
+    fun insertedSpacesMoveTheColorsWithTheText() {
+        // KM-N-15: a copy to the right in the same row took the colors from cells that it had already changed, so the
+        // first color went over all the moved text.
+        feed("\u001B[31mA\u001B[32mB\u001B[33mC\u001B[m\u001B[1G\u001B[@")
+        assertEquals(" ABC", term.screen.getSelectedText(0, 0, 79, 0))
+        assertEquals(listOf(1, 2, 3), (1..3).map { TextStyle.decodeForeColor(term.screen.getStyleAt(0, it)) })
+    }
 }
