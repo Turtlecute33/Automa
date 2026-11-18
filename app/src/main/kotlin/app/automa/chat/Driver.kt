@@ -42,13 +42,17 @@ class EnvGuest(private val env: Env) : Guest {
         val root = File(env.rootfs, within.removePrefix("/")).canonicalFile
         val file = File(env.rootfs, path.removePrefix("/")).canonicalFile
         if (!file.path.startsWith(root.path + File.separator) || !file.isFile || file.length() > max) return null
-        file.readText()
+        // The file can grow after the check: read at most max bytes (review KM-M-06).
+        val bytes = file.inputStream().use { it.readNBytes(max + 1) }
+        if (bytes.size > max) null else bytes.toString(Charsets.UTF_8)
     }.getOrNull()
 
     override fun append(path: String, text: String): Boolean = runCatching {
         val root = env.rootfs.canonicalFile
         val file = File(root, path.removePrefix("/")).canonicalFile
         if (!file.path.startsWith(root.path + File.separator)) return false
+        // Only a regular file or a new one: a write to a FIFO waits for ever (review KM-M-06).
+        if (file.exists() && !file.isFile) return false
         file.parentFile?.mkdirs()
         file.appendText(text)
         true

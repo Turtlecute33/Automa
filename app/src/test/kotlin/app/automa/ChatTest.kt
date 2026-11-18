@@ -807,6 +807,35 @@ class ChatTest {
     }
 
     @Test
+    fun guestFilesAreReadWithALimitAndNoSpecialFileGetsText() {
+        val root = kotlin.io.path.createTempDirectory("automa-guest").toFile()
+        val context = object : android.content.ContextWrapper(null) {
+            override fun getApplicationInfo() = android.content.pm.ApplicationInfo().apply { nativeLibraryDir = root.path }
+            override fun getNoBackupFilesDir() = root
+            override fun getCacheDir() = root
+        }
+        val guest = app.automa.chat.EnvGuest(app.automa.env.Env(context, app.automa.data.Secrets(java.io.File(root, "secrets"), { it }, { it })))
+        val codex = java.io.File(root, "rootfs/root/.codex").apply { mkdirs() }
+        val fifo = java.io.File(codex, "config.toml")
+        try {
+            java.io.File(codex, "a.txt").writeText("12345")
+            assertEquals("12345", guest.read("/root/.codex/a.txt", 5))
+            assertNull(guest.read("/root/.codex/a.txt", 4))
+            assertTrue(guest.append("/root/.codex/b.txt", "x"))
+            // A FIFO blocked the trust answer for ever (review KM-M-06).
+            assertEquals(0, ProcessBuilder("mkfifo", fifo.path).start().waitFor())
+            var appended: Boolean? = null
+            val writer = Thread { appended = guest.append("/root/.codex/config.toml", "\n[projects]\n") }.apply { isDaemon = true; start() }
+            writer.join(3000)
+            if (writer.isAlive) Thread { runCatching { java.io.FileInputStream(fifo).use { it.readBytes() } } }.apply { isDaemon = true; start() }
+            assertFalse(writer.isAlive, "append waits on a FIFO")
+            assertEquals(false, appended)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun onlySafeIdsGoIntoACommandLine() {
         assertTrue(app.automa.chat.safe("ses_e143d4d47ffeechXHNrkuDVjGh"))
         assertTrue(app.automa.chat.safe("01a1ebbf-1e6e-7b50-8fd0-c9c51b6421b0"))
