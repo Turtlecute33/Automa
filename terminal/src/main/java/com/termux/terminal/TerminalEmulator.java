@@ -622,9 +622,8 @@ public final class TerminalEmulator {
             case 24: // CAN.
             case 26: // SUB.
                 if (mEscapeState != ESC_NONE) {
-                    // FIXME: What is this??
+                    // Automa: only the end of the sequence. Upstream also stored a DEL with no width, which a copy kept.
                     mEscapeState = ESC_NONE;
-                    emitCodePoint(127);
                 }
                 break;
             case 27: // ESC
@@ -2374,7 +2373,9 @@ public final class TerminalEmulator {
                     codePoint = '␌'; // Form feed.
                     break;
                 case 'd':
-                    codePoint = '\r'; // Carriage return.
+                    // Automa: the symbol, as for 'b', 'c', 'e' and 'i'. A real CR was stored with no width, so a copy
+                    // had a character that the screen did not show.
+                    codePoint = '␍'; // Carriage return.
                     break;
                 case 'e':
                     codePoint = '␊'; // Linefeed.
@@ -2386,7 +2387,7 @@ public final class TerminalEmulator {
                     codePoint = '±'; // Plus-minus.
                     break;
                 case 'h':
-                    codePoint = '\n'; // Newline.
+                    codePoint = '␤'; // Newline (Automa: the symbol, see 'd').
                     break;
                 case 'i':
                     codePoint = '␋'; // Vertical tab.

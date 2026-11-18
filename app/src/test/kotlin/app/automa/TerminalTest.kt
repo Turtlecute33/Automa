@@ -140,4 +140,15 @@ class TerminalTest {
         feed("e\u0301\u0302".repeat(80))
         assertEquals("", term.screen.getSelectedText(80, 0, 80, 0))
     }
+
+    @Test
+    fun copiedTextHasNoHiddenControlCharacters() {
+        // Line drawing "d" and "h" stored CR and LF, and CAN stored DEL: the copy had characters that the screen did
+        // not show (a pasted LF can run a command).
+        feed("echo safe\u001B(0h\u001B(Bid")
+        feed("\r\nA\u001B[3\u0018B")
+        val text = term.screen.getSelectedText(0, 0, 79, 1)
+        assertFalse(text.any { it == '\r' || it == '\u007F' } || text.lines().size != 2, text)
+        assertEquals(listOf("echo safe\u2424id", "AB"), text.lines())
+    }
 }
