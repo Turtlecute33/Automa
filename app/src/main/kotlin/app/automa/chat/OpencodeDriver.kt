@@ -76,7 +76,10 @@ class OpencodeDriver(dir: String, @Suppress("unused") private val guest: Guest) 
 
     private fun onUpdate(u: JSONObject) {
         when (u.str("sessionUpdate")) {
-            "agent_message_chunk" -> chunk("msg-${u.str("messageId")}", u, Entry::Text).also { last = (it as? Entry.Text)?.text.orEmpty() }
+            "agent_message_chunk" -> chunk("msg-${u.str("messageId")}", u, Entry::Text).also { entry ->
+                // The plan is the text of the main agent, not a report of a sub-agent (review DS-L-82, research OC-15).
+                if (u.optJSONObject("_meta")?.optJSONObject("opencode/child-session") == null) last = (entry as? Entry.Text)?.text.orEmpty()
+            }
             "agent_thought_chunk" -> chunk("th-${u.str("messageId")}", u, Entry::Thought)
             "user_message_chunk" -> chunk("user-${u.str("messageId")}", u, Entry::User)
             "tool_call", "tool_call_update" -> {

@@ -458,6 +458,23 @@ class ChatTest {
     }
 
     @Test
+    fun opencodePlanCardHasNoSubAgentText() = runBlocking {
+        // A sub-agent report after the plan became the plan of the card (review DS-L-82, research OC-15).
+        val d = OpencodeDriver(dir, FakeGuest()).wired()
+        d.feed("""{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"current_mode_update","currentModeId":"plan"}}}""")
+        val sending = launch(kotlinx.coroutines.Dispatchers.Default) { d.send("Plan the fix") }
+        val prompt = sentWith("session/prompt")
+        d.feed(
+            """{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"agent_message_chunk","messageId":"m","content":{"type":"text","text":"1. Change a.kt"}}}}""",
+            """{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"agent_message_chunk","messageId":"c","content":{"type":"text","text":"Explore: done"},
+               "_meta":{"opencode/child-session":{"id":"ses_child","parentID":"ses_main","depth":1,"title":"Explore"}}}}}""",
+            """{"jsonrpc":"2.0","id":${prompt.getLong("id")},"result":{"stopReason":"end_turn"}}""",
+        )
+        sending.join()
+        assertEquals("1. Change a.kt", assertIs<Ask.Plan>(d.state.value.asks.single()).plan)
+    }
+
+    @Test
     fun cleanRemovesEscapesAndShowsFormatCharacters() {
         assertEquals("red text\tok\n", clean("\u001B[31mred\u001B[0m text\tok\n\u0007"))
         assertEquals("title", clean("\u001B]0;evil\u0007title"))
