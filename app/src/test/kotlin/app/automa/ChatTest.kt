@@ -262,6 +262,29 @@ class ChatTest {
     }
 
     @Test
+    fun codexNoteAfterNoAndStopComesWithNoPlanCard() = runBlocking {
+        // The note starts a new turn: a plan card at the same time would then steer that turn (review DS-L-92).
+        val d = CodexDriver(dir, FakeGuest()).wired()
+        d.select(app.automa.chat.Setting.Model, "gpt-test")
+        d.select(app.automa.chat.Setting.Mode, "plan")
+        d.feed("""{"id":3,"method":"item/commandExecution/requestApproval","params":{"threadId":"T","turnId":"U","itemId":"C","command":"make","availableDecisions":["accept","decline","cancel"]}}""")
+        val ask = assertIs<Ask.Permission>(d.state.value.asks.single())
+        d.answer(ask, Answer.Pick(ask.choices.single { it.label == "No, and stop" }, "use the other folder"))
+        val ending = launch(kotlinx.coroutines.Dispatchers.Default) {
+            d.feed(
+                """{"method":"item/completed","params":{"item":{"type":"plan","id":"P","text":"1. Add a test"}}}""",
+                """{"method":"turn/completed","params":{"turn":{"id":"U","status":"completed"}}}""",
+            )
+        }
+        val note = sentWith("turn/start")
+        val plan = d.state.value.asks.any { it is Ask.Plan }
+        d.feed("""{"id":${note.getLong("id")},"result":{"turn":{"id":"U2"}}}""")
+        ending.join()
+        assertEquals("use the other folder", note.getJSONObject("params").getJSONArray("input").getJSONObject(0).getString("text"))
+        assertFalse(plan)
+    }
+
+    @Test
     fun opencodePermissionAndToolMerge() {
         val d = OpencodeDriver(dir, FakeGuest()).wired()
         d.feed(

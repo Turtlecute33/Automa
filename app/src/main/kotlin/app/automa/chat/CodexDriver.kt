@@ -176,7 +176,9 @@ class CodexDriver(dir: String, private val guest: Guest) : Driver(dir) {
         error = false
         val text = plan
         plan = null
-        if (text != null && flow.value.mode == "plan" && t.str("status") == "completed") {
+        // A note after "No, and stop" starts a new turn: no plan card then, else "Implement" would steer that turn
+        // (review DS-L-92).
+        if (text != null && flow.value.mode == "plan" && t.str("status") == "completed" && next == null) {
             ask(
                 Ask.Plan(
                     PLAN, text,
