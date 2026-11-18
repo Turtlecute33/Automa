@@ -1010,7 +1010,9 @@ public final class TerminalView extends View {
     }
 
     private CharSequence getText() {
-        return mEmulator.getScreen().getSelectedText(0, mTopRow, mEmulator.mColumns, mTopRow + mEmulator.mRows);
+        // Automa: the end row is inclusive, so the last row on the view is mTopRow + mRows - 1. When scrolled back, the
+        // text had one row below the view (KM-P-01).
+        return mEmulator.getScreen().getSelectedText(0, mTopRow, mEmulator.mColumns, mTopRow + mEmulator.mRows - 1);
     }
 
     public int getCursorX(float x) {
