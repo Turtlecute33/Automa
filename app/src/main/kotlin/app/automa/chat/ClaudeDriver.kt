@@ -14,7 +14,8 @@ import java.util.UUID
  * Each permission, each AskUserQuestion and each plan approval comes as a `can_use_tool` request and becomes a card.
  */
 class ClaudeDriver(dir: String, private val guest: Guest) : Driver(dir) {
-    private val session = UUID.randomUUID().toString()
+    /** The conversation for a resume in the terminal: a new one after /clear. */
+    private var session = UUID.randomUUID().toString()
     private var turns = 0
     private var trusted = false
     private val pending = HashMap<String, CompletableDeferred<JSONObject>>()
@@ -81,7 +82,7 @@ class ClaudeDriver(dir: String, private val guest: Guest) : Driver(dir) {
             "user" -> toolResults(json)
             "result" -> result(json)
             "system" -> system(json)
-            "conversation_reset" -> reset()
+            "conversation_reset" -> reset(json.str("new_conversation_id"))
             "rate_limit_event" -> json.optJSONObject("rate_limit_info")?.let { info ->
                 when (info.str("status")) {
                     "allowed_warning" -> note("You are near a usage limit of your plan.")
@@ -100,15 +101,17 @@ class ClaudeDriver(dir: String, private val guest: Guest) : Driver(dir) {
 
     /**
      * A new conversation (`/clear`): the rows, the cards and the stream state of the old one go. An open request gets a
-     * deny, so that it does not wait with no card (review DS-L-94).
+     * deny, so that it does not wait with no card (review DS-L-94). The terminal button then resumes the new
+     * conversation [id]; it goes into a command line, so only a UUID (review KM-Q-note-2, research CC-22).
      */
-    private suspend fun reset() {
+    private suspend fun reset(id: String) {
+        if (CONVERSATION.matches(id)) session = id
         val open = requests.toList()
         requests.clear()
         streamed.clear()
         used.clear()
         message = ""
-        update { it.copy(entries = emptyList(), asks = emptyList()) }
+        update { it.copy(entries = emptyList(), asks = emptyList(), session = session) }
         note("New conversation")
         open.forEach { (id, r) ->
             write(response(id, JSONObject().put("behavior", "deny").put("message", "The conversation was reset.").put("toolUseID", r.str("tool_use_id"))))
@@ -394,6 +397,7 @@ class ClaudeDriver(dir: String, private val guest: Guest) : Driver(dir) {
         private const val HOME = "/root"
         private const val LOGIN = "Claude Code is not logged in. Log in in the terminal, then start a new chat."
         private const val OUTPUT = 20_000
+        private val CONVERSATION = Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 
         /** Trust from Claude Code's own store (`~/.claude.json`): the folder or a parent folder. */
         fun trusted(config: String?, dir: String): Boolean {

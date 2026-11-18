@@ -159,6 +159,22 @@ class ChatTest {
     }
 
     @Test
+    fun claudeTerminalResumesTheConversationAfterAClear() {
+        // After /clear the terminal button resumed the old conversation (review KM-Q-note-2, research CC-22).
+        val d = ClaudeDriver(dir, FakeGuest()).wired()
+        val id = "0f2c5a3e-1b2c-4d5e-8f90-a1b2c3d4e5f6"
+        d.feed(
+            """{"type":"result","subtype":"success","is_error":false,"result":"ok"}""",
+            """{"type":"conversation_reset","new_conversation_id":"$id"}""",
+        )
+        assertEquals("claude --resume $id", d.terminal())
+        assertEquals(id, d.state.value.session)
+        // Only a real UUID goes into the command line.
+        d.feed("""{"type":"conversation_reset","new_conversation_id":"$id;id"}""", """{"type":"conversation_reset","new_conversation_id":"--help"}""")
+        assertEquals("claude --resume $id", d.terminal())
+    }
+
+    @Test
     fun claudeTrustComesFromItsOwnStore() {
         val config = """{"projects":{"/root/repos":{"hasTrustDialogAccepted":true},"/root/other":{"hasTrustDialogAccepted":false}}}"""
         assertTrue(ClaudeDriver.trusted(config, "/root/repos/demo"))
