@@ -5,6 +5,7 @@ import com.termux.terminal.TerminalEmulator
 import com.termux.terminal.TerminalOutput
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
+import com.termux.terminal.TextStyle
 import java.io.ByteArrayOutputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -70,5 +71,16 @@ class TerminalTest {
             assertEquals(0, term.cursorCol)
             feed("\u001BH\u001B[P\u001B[@\u001B[X\u001B[K")
         }
+    }
+
+    @Test
+    fun rectangleAttributesStayInTheRegion() {
+        // Origin mode adds the margins: the rectangle went past the last row or column.
+        feed("\u001B[?6h\u001B[10;24r\u001B[1;1;24;80;1\$r\u001B[1;1;24;80;1\$t")
+        feed("\u001Bc\u001B[?69h\u001B[?6h\u001B[10;80s\u001B[1;1;24;80;1\$r")
+        // Rectangle mode (DECSACE 2): only the cell of a 1x1 rectangle changes.
+        feed("\u001Bc\u001B[2*x\u001B[1;1;1;1;1\$r")
+        val bold = { row: Int, col: Int -> TextStyle.decodeEffect(term.screen.getStyleAt(row, col)) and TextStyle.CHARACTER_ATTRIBUTE_BOLD != 0 }
+        assertEquals(listOf(true, false, false), listOf(bold(0, 0), bold(0, 1), bold(1, 0)))
     }
 }

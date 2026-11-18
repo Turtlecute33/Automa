@@ -742,8 +742,11 @@ public final class TerminalEmulator {
                                 // FIXME: "coordinates of the rectangular area are affected by the setting of origin mode (DECOM)".
                                 int top = Math.min(getArg(0, 1, true) - 1, effectiveBottomMargin) + effectiveTopMargin;
                                 int left = Math.min(getArg(1, 1, true) - 1, effectiveRightMargin) + effectiveLeftMargin;
-                                int bottom = Math.min(getArg(2, mRows, true) + 1, effectiveBottomMargin - 1) + effectiveTopMargin;
-                                int right = Math.min(getArg(3, mColumns, true) + 1, effectiveRightMargin - 1) + effectiveLeftMargin;
+                                // Automa: exclusive ends, limited to the region as in DECFRA. The old ends added the
+                                // margin after the limit, so with DECOM they went past the screen (an exception on the main
+                                // thread), and they were one row and one column too far.
+                                int bottom = Math.min(getArg(2, mRows, true) + effectiveTopMargin, effectiveBottomMargin);
+                                int right = Math.min(getArg(3, mColumns, true) + effectiveLeftMargin, effectiveRightMargin);
                                 if (mArgIndex >= 4) {
                                     if (mArgIndex >= mArgs.length) mArgIndex = mArgs.length - 1;
                                     for (int i = 4; i <= mArgIndex; i++) {
