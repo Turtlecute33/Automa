@@ -361,6 +361,20 @@ class ChatTest {
     }
 
     @Test
+    fun claudeEditCardSaysWhenItChangesAllPlaces() {
+        val d = ClaudeDriver(dir, FakeGuest()).wired()
+        d.feed(
+            """{"type":"control_request","request_id":"p1","request":{"subtype":"can_use_tool","tool_name":"Edit","tool_use_id":"t1",
+               "input":{"file_path":"$dir/a.kt","old_string":"foo","new_string":"bar","replace_all":true}}}""",
+            """{"type":"control_request","request_id":"p2","request":{"subtype":"can_use_tool","tool_name":"Edit","tool_use_id":"t2",
+               "input":{"file_path":"$dir/a.kt","old_string":"foo","new_string":"bar"}}}""",
+        )
+        val (all, one) = d.state.value.asks.map { assertIs<Ask.Permission>(it) }
+        assertTrue("all the places" in all.message.orEmpty(), all.message)
+        assertNull(one.message)
+    }
+
+    @Test
     fun codexDoesNotStartWhenTrustIsNotSaved() {
         val guest = FakeGuest(canAppend = false)
         val d = CodexDriver(dir, guest).wired()

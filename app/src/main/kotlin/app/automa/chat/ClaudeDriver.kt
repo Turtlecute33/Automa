@@ -291,6 +291,8 @@ class ClaudeDriver(dir: String, private val guest: Guest) : Driver(dir) {
                         suggestions.mapIndexed { i, s -> Choice("s$i", suggestionLabel(s), Choice.Kind.Always) } +
                         Choice("deny", "No", Choice.Kind.Deny),
                     feedback = true,
+                    // The diff shows one change, but Yes changes all the places (review KM-M-24).
+                    message = if (tool == "Edit" && input.optBoolean("replace_all")) "This edit changes all the places in the file that have the old text." else null,
                     caution = no,
                 ).let { if (no) it.copy(choices = it.choices.takeLast(1) + it.choices.dropLast(1)) else it }
             }
