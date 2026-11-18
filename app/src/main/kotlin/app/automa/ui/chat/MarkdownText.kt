@@ -40,11 +40,12 @@ val Mono: FontFamily get() = Look.cached?.let { FontFamily(it) } ?: FontFamily.M
 /** Agent text as Markdown ([Markdown]). A very long text stays plain (review SEC-20). */
 @Composable
 fun MarkdownText(text: String, modifier: Modifier = Modifier) {
-    if (text.length > MAX_MARKDOWN) {
+    val blocks = remember(text) { if (text.length > MAX_MARKDOWN) emptyList() else Markdown.blocks(text) }
+    // The blocks are not in a lazy list: 60,000 characters of "- " lines gave 20,000 items and 60,000 composables.
+    if (text.length > MAX_MARKDOWN || blocks.size > MAX_BLOCKS) {
         Text(text, style = MaterialTheme.typography.bodyMedium, fontFamily = Mono, modifier = modifier)
         return
     }
-    val blocks = remember(text) { Markdown.blocks(text) }
     val colors = MaterialTheme.colorScheme
     var link by remember { mutableStateOf<String?>(null) }
     val styles = remember(colors) {
@@ -133,6 +134,7 @@ private fun LinkDialog(url: String, onDismiss: () -> Unit) {
 }
 
 private const val MAX_MARKDOWN = 60_000
+private const val MAX_BLOCKS = 500
 
 /** At most this many characters after the padding of a table; a larger table keeps its cells as they came. */
 private const val MAX_TABLE = 200_000
