@@ -968,7 +968,9 @@ public final class TerminalEmulator {
                     // the meaning of e.g. "ku", "kd", "kr", "kl"
 
                     for (String part : dcs.substring(2).split(";")) {
-                        if (part.length() % 2 == 0) {
+                        // Automa: names are hex (as in Varco). The reply goes to the program input, so other text from the
+                        // output (for example "rm -rf ~", or ^C and ^U) must not come back as typed input.
+                        if (part.length() % 2 == 0 && part.matches("[0-9A-Fa-f]+")) {
                             StringBuilder transBuffer = new StringBuilder();
                             char c;
                             for (int i = 0; i < part.length(); i += 2) {

@@ -123,4 +123,13 @@ class TerminalTest {
         writer.join(5000)
         assertFalse(writer.isAlive)
     }
+
+    @Test
+    fun termcapQueriesDoNotEchoTextIntoTheInput() {
+        // XTGETTCAP: the reply goes to the program input (the shell prompt). Only hex names get a reply.
+        feed("\u001BP+qrm -rf ~\u001B\\\u001BP+q\u0003\u0004\u0015\u001C\u001B\\\u001BP+q;;\u001B\\")
+        assertEquals("", out.sent.toString())
+        feed("\u001BP+q6B75\u001B\\")
+        assertEquals("\u001BP1+r6B75=1B5B41\u001B\\", out.sent.toString())
+    }
 }
