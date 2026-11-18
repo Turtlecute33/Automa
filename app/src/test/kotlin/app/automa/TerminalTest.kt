@@ -328,4 +328,15 @@ class TerminalTest {
         assertEquals(" ABC", term.screen.getSelectedText(0, 0, 79, 0))
         assertEquals(listOf(1, 2, 3), (1..3).map { TextStyle.decodeForeColor(term.screen.getStyleAt(0, it)) })
     }
+
+    @Test
+    fun aResizeKeepsTheCursorOnItsLineAfterABlankLine() {
+        // KM-N-16: the reflow put back a blank line with a scroll, but did not move the cursor up with its line.
+        val small = TerminalEmulator(out, 10, 4, 10, 20, 100, Client)
+        val text = "A\r\nB\r\n\r\nC\u001B[2;1H".toByteArray()
+        small.append(text, text.size)
+        small.resize(12, 3, 10, 20)
+        assertEquals("B", small.screen.getSelectedText(0, 0, 11, 0))
+        assertEquals(listOf(0, 0), listOf(small.cursorRow, small.cursorCol))
+    }
 }

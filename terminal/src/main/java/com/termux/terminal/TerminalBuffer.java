@@ -277,6 +277,8 @@ public final class TerminalBuffer {
                     // After skipping some blank lines we encounter a non-blank line. Insert the skipped blank lines.
                     for (int i = 0; i < skippedBlankLines; i++) {
                         if (currentOutputExternalRow == mScreenRows - 1) {
+                            // Automa: the cursor moves up with its line, as at the two other scrolls below (KM-N-16).
+                            if (newCursorPlaced) newCursorRow--;
                             scrollDownOneLine(0, mScreenRows, currentStyle);
                         } else {
                             currentOutputExternalRow++;
