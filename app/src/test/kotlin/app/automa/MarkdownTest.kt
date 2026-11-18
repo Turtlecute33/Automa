@@ -77,6 +77,17 @@ class MarkdownTest {
     }
 
     @Test
+    fun aBareLinkKeepsItsClosingParenthesis() {
+        // Review KM-P-02A: the ")" of a balanced pair was cut off the link.
+        val s = Markdown.inline("See https://en.wikipedia.org/wiki/Kotlin_(language). (Or https://example.org/a.)", styles)
+        val urls = s.getLinkAnnotations(0, s.length).map { (it.item as LinkAnnotation.Clickable).tag }
+        assertEquals(listOf("https://en.wikipedia.org/wiki/Kotlin_(language)", "https://example.org/a"), urls)
+        val start = System.nanoTime()
+        Markdown.inline("https://example.org/" + ")".repeat(19_000), styles)
+        assertTrue((System.nanoTime() - start) / 1_000_000 < 500)
+    }
+
+    @Test
     fun aLinkLabelHoldsNoOtherLink() {
         val s = Markdown.inline("[https://github.com/login](https://attacker.example/login)", styles)
         val urls = s.getLinkAnnotations(0, s.length).map { (it.item as LinkAnnotation.Clickable).tag }

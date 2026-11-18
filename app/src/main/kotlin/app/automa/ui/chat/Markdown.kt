@@ -201,7 +201,15 @@ object Markdown {
                 !link && text.startsWith("https://", i) && (i == 0 || !text[i - 1].isLetterOrDigit()) -> {
                     var end = i
                     while (end < text.length && !text[end].isWhitespace() && text[end] !in "<>\"`") end++
-                    while (end > i && text[end - 1] in ".,;:!?)]'") end--
+                    // A ")" at the end stays when it closes a "(" of the link (review KM-P-02A). One count: linear.
+                    var open = 0
+                    var close = 0
+                    for (k in i until end) if (text[k] == '(') open++ else if (text[k] == ')') close++
+                    while (end > i) {
+                        val last = text[end - 1]
+                        if (last == ')' && close > open) close-- else if (last !in ".,;:!?]'") break
+                        end--
+                    }
                     val url = text.substring(i, end)
                     flush()
                     if (safe(url)) withLink(LinkAnnotation.Clickable(url, styles.link) { styles.onLink(url) }) { append(url) } else append(url)
