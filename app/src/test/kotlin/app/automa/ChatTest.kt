@@ -767,6 +767,29 @@ class ChatTest {
     }
 
     @Test
+    fun aCloseFailsTheWaitingCalls() = runBlocking {
+        // Review DS-L-70, KM-M-31: after a close, a user action that waited for an answer waited for ever, and it kept
+        // the driver in memory. A host process that reads nothing is the agent.
+        val process = ProcessBuilder("sleep", "60").start()
+        try {
+            val pipe = app.automa.chat.Pipe::class.java.getDeclaredConstructor(Process::class.java, String::class.java)
+                .apply { isAccessible = true }.newInstance(process, "AUTOMA_RUN=test")
+            val d = CodexDriver(dir, FakeGuest())
+            val chat = background.launch { d.read(pipe, this) }
+            // A user action runs in the app scope, not in the scope of the chat.
+            val sending = background.launch { d.send("Fix it") }
+            kotlinx.coroutines.delay(300)
+            chat.cancel()
+            process.destroy()
+            chat.join()
+            kotlinx.coroutines.withTimeout(5000) { sending.join() }
+            assertFalse(d.state.value.busy)
+        } finally {
+            process.destroyForcibly()
+        }
+    }
+
+    @Test
     fun onlySafeIdsGoIntoACommandLine() {
         assertTrue(app.automa.chat.safe("ses_e143d4d47ffeechXHNrkuDVjGh"))
         assertTrue(app.automa.chat.safe("01a1ebbf-1e6e-7b50-8fd0-c9c51b6421b0"))

@@ -125,13 +125,27 @@ abstract class Driver(val dir: String) {
             withContext(NonCancellable + Dispatchers.IO) { pipe.stop() }
             return
         }
+        read(pipe, scope)
+    }
+
+    /** Talks with the agent on [pipe] until it ends. Runs in [scope]. */
+    internal suspend fun read(pipe: Pipe, scope: CoroutineScope) {
         attach { json -> withContext(Dispatchers.IO) { pipe.send(json) } }
         scope.launch(serial) { safely { begin() } }
-        val code = runInterruptible(Dispatchers.IO) { pipe.read { json -> scope.launch(serial) { safely { receive(json) } } } }
-        withContext(serial) {
-            closed()
-            val errors = clean(pipe.errors()).lines().filter { it.isNotBlank() }.takeLast(6).joinToString("\n")
-            end(if (code == 0) "The agent ended." else "The agent ended with code $code." + if (errors.isNotEmpty()) "\n$errors" else "")
+        var code: Int? = null
+        try {
+            code = runInterruptible(Dispatchers.IO) { pipe.read { json -> scope.launch(serial) { safely { receive(json) } } } }
+        } finally {
+            // Also after a close (a cancel): the waiting calls of user actions must fail, else they wait for ever and keep
+            // the driver (review DS-L-70, DS-L-78, KM-M-31).
+            withContext(NonCancellable + serial) {
+                closed()
+                val exit = code
+                if (exit != null) {
+                    val errors = clean(pipe.errors()).lines().filter { it.isNotBlank() }.takeLast(6).joinToString("\n")
+                    end(if (exit == 0) "The agent ended." else "The agent ended with code $exit." + if (errors.isNotEmpty()) "\n$errors" else "")
+                }
+            }
         }
     }
 
