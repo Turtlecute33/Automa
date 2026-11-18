@@ -407,6 +407,19 @@ class ChatTest {
     }
 
     @Test
+    fun aLargeDiffKeepsFewLinesButItsCounts() {
+        // Many Write rows of large files kept all their lines: out of memory (review DS-L-13, KM-H-12).
+        val old = (1..5000).joinToString("\n") { "old $it" }
+        val new = (1..3000).joinToString("\n") { "new $it" }
+        val file = app.automa.chat.Diff.of("a.txt", old, new).files.single()
+        assertEquals(app.automa.chat.Diff.MAX_LINES, file.lines.size)
+        assertEquals(3000, file.added)
+        assertEquals(5000, file.removed)
+        assertEquals(8000 - app.automa.chat.Diff.MAX_LINES, file.more)
+        assertEquals(1, app.automa.chat.Diff.of("b.txt", "a", "b").files.single().added)
+    }
+
+    @Test
     fun onlySafeIdsGoIntoACommandLine() {
         assertTrue(app.automa.chat.safe("ses_e143d4d47ffeechXHNrkuDVjGh"))
         assertTrue(app.automa.chat.safe("01a1ebbf-1e6e-7b50-8fd0-c9c51b6421b0"))

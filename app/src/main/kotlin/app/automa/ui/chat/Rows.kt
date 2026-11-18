@@ -143,8 +143,8 @@ private fun StatusDot(status: Status) {
 
 @Composable
 private fun DiffCount(diff: Diff) {
-    val added = remember(diff) { diff.files.sumOf { f -> f.lines.count { it.startsWith("+") } } }
-    val removed = remember(diff) { diff.files.sumOf { f -> f.lines.count { it.startsWith("-") } } }
+    val added = remember(diff) { diff.files.sumOf { it.added } }
+    val removed = remember(diff) { diff.files.sumOf { it.removed } }
     Text(
         buildAnnotatedString {
             withStyle(SpanStyle(color = Color(Look.ANSI[2]))) { append("+$added") }
@@ -174,7 +174,8 @@ fun DiffView(diff: Diff, maxLines: Int = 200) {
                     }
                     withStyle(SpanStyle(color = Color(color))) { append(line) }
                 }
-                if (file.lines.size > maxLines) append("\n… ${file.lines.size - maxLines} more lines")
+                val hidden = maxOf(0, file.lines.size - maxLines) + file.more
+                if (hidden > 0) append("\n… $hidden more lines")
             }
         }
     }

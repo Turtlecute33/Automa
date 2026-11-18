@@ -44,10 +44,20 @@ data class Todo(val text: String, val state: State) {
 /** File changes: for each file, its path and unified diff lines ("+", "-" or " " first). */
 @Immutable
 data class Diff(val files: List<File>) {
+    /**
+     * At most [MAX_LINES] [lines] (review DS-L-13, KM-H-12). [added] and [removed] count all the lines, and [more] is
+     * the number of lines that are not kept.
+     */
     @Immutable
-    data class File(val path: String, val lines: List<String>)
+    data class File(val path: String, val lines: List<String>, val added: Int, val removed: Int, val more: Int) {
+        constructor(path: String, all: List<String>) : this(
+            path, all.take(MAX_LINES), all.count { it.startsWith("+") }, all.count { it.startsWith("-") }, maxOf(0, all.size - MAX_LINES),
+        )
+    }
 
     companion object {
+        const val MAX_LINES = 1000
+
         /** A diff from the old and the new text of one file: the removed lines, then the added lines. */
         fun of(path: String, old: String, new: String): Diff {
             val a = if (old.isEmpty()) emptyList() else old.lines()
