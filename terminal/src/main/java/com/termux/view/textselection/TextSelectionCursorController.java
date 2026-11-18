@@ -346,6 +346,9 @@ public class TextSelectionCursorController implements CursorController {
 
     @Override
     public void onDetached() {
+        // Automa: the next hide() works also in the first 300 ms after show(). The view calls this before its hide on
+        // detach, and the handles and the action mode must go with the view (KM-Q-06).
+        mShowStartTime = 0;
     }
 
     @Override

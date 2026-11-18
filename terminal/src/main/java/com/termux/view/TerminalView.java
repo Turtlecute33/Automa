@@ -1430,10 +1430,12 @@ public final class TerminalView extends View {
         if (mTextSelectionCursorController != null) {
             // Might solve the following exception
             // android.view.WindowLeaked: Activity com.termux.app.TermuxActivity has leaked window android.widget.PopupWindow
+            // Automa: onDetached() first, so that the hide also works in the first 300 ms after the show. Else the
+            // handles and the action mode could stay over the next screen (KM-Q-06).
+            mTextSelectionCursorController.onDetached();
             stopTextSelectionMode();
 
             getViewTreeObserver().removeOnTouchModeChangeListener(mTextSelectionCursorController);
-            mTextSelectionCursorController.onDetached();
         }
     }
 
