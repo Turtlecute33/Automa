@@ -217,7 +217,9 @@ private fun share(view: TerminalView) {
         view.currentSession?.emulator?.screen?.transcriptText
     }
     if (text.isNullOrBlank()) return
-    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text.takeLast(100_000))
+    // The cut can fall in a surrogate pair: no lone low surrogate at the start (review KM-Q-note-7).
+    val tail = text.takeLast(100_000).dropWhile(Char::isLowSurrogate)
+    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, tail)
     view.context.startActivity(Intent.createChooser(send, null))
 }
 
