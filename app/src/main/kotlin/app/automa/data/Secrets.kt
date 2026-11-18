@@ -26,10 +26,17 @@ class Secrets(
     /** The names, sorted. Values never leave [all]. */
     val names: StateFlow<List<String>> = _names.asStateFlow()
 
-    suspend fun load() = lock.withLock { _names.value = readOrEmpty().keys.sorted() }
+    suspend fun load() {
+        all()
+    }
 
-    /** All values, for a new guest process. A file that cannot be opened now gives no secrets. */
-    suspend fun all(): Map<String, String> = lock.withLock { readOrEmpty() }
+    /**
+     * All values, for a new guest process. A file that cannot be opened now gives no secrets. Each good read also sets
+     * the names: after a short Keystore error at the start, the screens show the keys again (review KM-M-22).
+     */
+    suspend fun all(): Map<String, String> = lock.withLock {
+        runCatching { read() }.getOrNull()?.also { _names.value = it.keys.sorted() }.orEmpty()
+    }
 
     /** Throws when the file cannot be opened, so that a short Keystore error does not erase the secrets (review SEC-6). */
     suspend fun put(name: String, value: String) = lock.withLock {
@@ -46,17 +53,14 @@ class Secrets(
         json.keys().asSequence().associateWith { json.getString(it) }
     }
 
-    private suspend fun readOrEmpty() = runCatching { read() }.getOrDefault(emptyMap())
-
-    private suspend fun write(map: Map<String, String>) {
-        withContext(Dispatchers.IO) {
-            val bytes = seal(JSONObject(map).toString().encodeToByteArray())
-            val atomic = AtomicFile(file)
-            val out = atomic.startWrite()
-            runCatching { out.write(bytes) }
-                .onSuccess { atomic.finishWrite(out) }
-                .onFailure { atomic.failWrite(out); throw it }
-        }
+    private suspend fun write(map: Map<String, String>) = withContext(Dispatchers.IO) {
+        val bytes = seal(JSONObject(map).toString().encodeToByteArray())
+        val atomic = AtomicFile(file)
+        val out = atomic.startWrite()
+        runCatching { out.write(bytes) }
+            .onSuccess { atomic.finishWrite(out) }
+            .onFailure { atomic.failWrite(out); throw it }
+        // In the same block as the write: after the block, a cancel would skip it (review KM-M-22).
         _names.value = map.keys.sorted()
     }
 
