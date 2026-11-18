@@ -10,6 +10,7 @@ runs locally on Android. No Termux, no remote computer, no trackers.
 
 [![Android 15+](https://img.shields.io/badge/Android-15%2B-3DDC84?logo=android&logoColor=white)](#build)
 [![GrapheneOS](https://img.shields.io/badge/GrapheneOS-ready-1B3A4B)](#security)
+[![Release](https://img.shields.io/github/v/release/Turtlecute33/Automa?include_prereleases&color=1B3A4B)](https://github.com/Turtlecute33/Automa/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue)](LICENSE)
 
 <img src="docs/banner.png" width="100%" alt="Automa for Android: the home screen with open sessions, a Claude Code chat with a permission card for a README edit, and the opencode terminal UI. Synthetic data.">
@@ -157,7 +158,21 @@ The app connects to:
 
 ## Download
 
-There is no release yet. Build the app from source (see [Build](#build)).
+Get the APK from [Releases](https://github.com/Turtlecute33/Automa/releases). It needs Android 15
+or later on an arm64 phone. Automa is new software. Report problems in
+[Issues](https://github.com/Turtlecute33/Automa/issues).
+
+Before you install, check the signing certificate. Its SHA-256 fingerprint is:
+
+```text
+60598a4292083f57b4a8b928f96a7f88f094fd0528a4c7c2a60df36f635a6b40
+```
+
+Compare it with the output of `apksigner verify --print-certs <file>.apk`, or use AppVerifier.
+Do not install an APK with a different certificate.
+
+On GrapheneOS, set "Native code debugging" to Allowed for Automa before the setup (see
+[Security](#security)).
 
 ## Build
 
