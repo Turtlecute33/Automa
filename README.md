@@ -161,6 +161,9 @@ The app connects to:
 | `auth.openai.com`, `chatgpt.com` | Codex: login and each prompt |
 | `gateway.trytokenfactory.dev` | The TFF model list (when you save `TFF_API_KEY`, tap reload, or the setup runs), and each prompt in opencode |
 
+Settings › Support has links to donate and to the developer on X and Nostr. They open in your
+browser. The app itself does not connect to these hosts.
+
 ## Download
 
 Get the APK from [Releases](https://github.com/Turtlecute33/Automa/releases). It needs Android 15

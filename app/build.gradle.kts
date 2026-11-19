@@ -26,8 +26,8 @@ android {
         applicationId = "app.automa"
         minSdk = 35
         targetSdk = 37
-        versionCode = 9
-        versionName = "0.6.1"
+        versionCode = 10
+        versionName = "0.6.2"
         // PRoot and the guest programs are arm64 only.
         ndk { abiFilters += "arm64-v8a" }
     }

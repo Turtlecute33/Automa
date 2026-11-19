@@ -1,6 +1,8 @@
 package app.automa.ui
 
 import android.app.Activity
+import android.content.Context
+import android.content.Intent
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import androidx.activity.compose.LocalActivity
@@ -13,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.InterceptPlatformTextInput
 import androidx.compose.ui.platform.PlatformTextInputMethodRequest
+import androidx.core.net.toUri
 import java.io.IOException
 import java.security.GeneralSecurityException
 import java.net.SocketTimeoutException
@@ -27,6 +30,11 @@ fun userText(e: Throwable): String = when (e) {
     is GeneralSecurityException -> "The keys cannot be opened now. Try again."
     is IOException, is IllegalArgumentException -> e.message ?: "The operation failed"
     else -> "The operation failed (${e.javaClass.simpleName})"
+}
+
+/** Opens an https [url] in the browser. Nothing happens when the device has no browser. */
+fun openLink(context: Context, url: String) {
+    if (url.startsWith("https://")) runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
 }
 
 /** The keyboard must not learn from the fields in [content] (secrets). DESIGN §7. */

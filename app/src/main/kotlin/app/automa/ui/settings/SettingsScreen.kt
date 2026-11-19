@@ -27,6 +27,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -41,6 +42,7 @@ import app.automa.env.Setup
 import app.automa.git.GitHub
 import app.automa.ui.Icons
 import app.automa.ui.SectionHeader
+import app.automa.ui.openLink
 import app.automa.ui.userText
 import app.automa.ui.nav.Navigator
 import app.automa.ui.nav.Route
@@ -207,6 +209,10 @@ fun SettingsScreen(nav: Navigator) {
                     modifier = Modifier.clickable(enabled = !resetRunning) { resetting = true },
                 )
             }
+            item(key = "h-support") { SectionHeader("Support") }
+            item(key = "donate") { LinkRow("Donate bitcoin", "btcpay.priorato.org", Icons.Bitcoin, DONATE_URL) }
+            item(key = "x") { LinkRow("X", "@turtlecute33", Icons.AlternateEmail, "https://x.com/turtlecute33") }
+            item(key = "nostr") { LinkRow("Nostr", "turtlecute@primal.net", Icons.Hub, "https://primal.net/turtlecute") }
             item(key = "about") {
                 Text(
                     "Automa ${BuildConfig.VERSION_NAME} · GPL-3.0. PRoot (GPL-2.0), talloc (LGPL-3.0), Termux terminal " +
@@ -258,6 +264,22 @@ fun SettingsScreen(nav: Navigator) {
             dismissButton = { TextButton(onClick = { resetting = false }) { Text("Cancel") } },
         )
     }
+}
+
+/** Settings › Support. The browser opens the links; Automa does not connect to these hosts. */
+private const val DONATE_URL =
+    "https://btcpay.priorato.org/api/v1/invoices?storeId=31ntjiLSTmSSuTC6FrR81z6AAku46bLF2FKAL3MFHtV5&orderId=Donation&checkoutDesc=Donation&currency=USD"
+
+/** A row that opens [url] in the browser. */
+@Composable
+private fun LinkRow(title: String, text: String, icon: ImageVector, url: String) {
+    val context = LocalContext.current
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(text) },
+        leadingContent = { Icon(icon, null) },
+        modifier = Modifier.clickable { openLink(context, url) },
+    )
 }
 
 /** The download size and the size on the phone (estimates, DESIGN §3). */
