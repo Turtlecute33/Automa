@@ -260,6 +260,14 @@ The single source of truth for Automa. Findings with IDs are in `research/`.
   its private server is a child of the session (no detached service) and answers 401 to another UID;
   the ACP chat shows the "no model" card; no process stays after a close; Settings → Update reads
   the release list and keeps 2.3.1.
+- Emulator (Android 17, API 37), version 0.6.1 (the fixes of two review reports): a close stops a
+  process that left the tree with `setsid` (TracerPid); a tab that ended with an error keeps no wake
+  lock; a cold start with a FIFO marker and a folder with mode 000; Reset stops a shell and an
+  opencode chat before the rename, and the link bar works after a new setup in the same process; a
+  close during a long Claude turn (a scripted agent that ignores stdin and SIGTERM) ends the agent
+  in about 2 s with no crash; a list of 600 items shows as plain text; 39 KB of replies to terminal
+  queries from a raw-mode program that reads nothing give no ANR; the Codex chat (with the
+  `CODEX_HOME` check), the Codex TUI (`--disable plugins`) and the opencode TUI start.
 - Not tested by Claude: GitHub login, push, AI providers and the agent logins (live tests for the owner,
   `docs/LIVE-TESTS.md`), each chat card with a real agent turn (L-10), behaviour on the Pixel.
 

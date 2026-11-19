@@ -249,6 +249,13 @@ docs/                             DESIGN.md, research/, review/, LIVE-TESTS.md
   (HTTP 401). Unit tests drive the three chat protocols with scripted messages.
 - Emulator (Android 17, API 37), version 0.6.0: the update to opencode 2.3.1, its terminal UI and
   chat under PRoot, no shared background server, and Settings → Update on the 2.x line.
+- Emulator (Android 17, API 37), version 0.6.1: a close stops a process that left the tree with
+  `setsid`; a tab that ended with an error keeps no wake lock; a cold start with a FIFO marker and a
+  locked folder; Reset stops a shell and a chat before the delete, and the link bar works after a
+  new setup; a chat close during a long turn (a scripted agent that ignores its input) ends the
+  agent with no crash; a 600-item Markdown list shows as plain text; 39 KB of terminal replies to a
+  program that reads nothing give no "App not responding"; the Codex chat and the Codex and opencode
+  terminal UIs start.
 - Not tested yet: chat turns with a real agent (live test L-10), the TFF model list with a real key, the Claude Code and Codex logins and tasks,
   the clone of more than one repository (it needs a GitHub login), GitHub login, push (live tests for the owner,
   [docs/LIVE-TESTS.md](docs/LIVE-TESTS.md)), and the behaviour on a Pixel with GrapheneOS.
