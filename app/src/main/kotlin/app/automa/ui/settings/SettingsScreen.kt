@@ -40,6 +40,7 @@ import app.automa.env.Agent
 import app.automa.env.Agents
 import app.automa.env.Setup
 import app.automa.git.GitHub
+import app.automa.ui.DONATE_URL
 import app.automa.ui.Icons
 import app.automa.ui.SectionHeader
 import app.automa.ui.openLink
@@ -265,10 +266,6 @@ fun SettingsScreen(nav: Navigator) {
         )
     }
 }
-
-/** Settings › Support. The browser opens the links; Automa does not connect to these hosts. */
-private const val DONATE_URL =
-    "https://btcpay.priorato.org/api/v1/invoices?storeId=31ntjiLSTmSSuTC6FrR81z6AAku46bLF2FKAL3MFHtV5&orderId=Donation&checkoutDesc=Donation&currency=USD"
 
 /** A row that opens [url] in the browser. */
 @Composable

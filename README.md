@@ -162,7 +162,9 @@ The app connects to:
 | `gateway.trytokenfactory.dev` | The TFF model list (when you save `TFF_API_KEY`, tap reload, or the setup runs), and each prompt in opencode |
 
 Settings › Support has links to donate and to the developer on X and Nostr. They open in your
-browser. The app itself does not connect to these hosts.
+browser. The app itself does not connect to these hosts. A small donation card shows when you open
+the app: first 7 days after the install, then at most once each 3 months. It sends no notification
+and makes no request.
 
 ## Download
 

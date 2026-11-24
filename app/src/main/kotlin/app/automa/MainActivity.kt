@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.automa.ui.DonatePrompt
 import app.automa.ui.Icons
 import app.automa.ui.nav.AppNav
 import app.automa.ui.nav.Navigator
@@ -60,7 +61,12 @@ class MainActivity : ComponentActivity() {
                         // minute away from the app (onStart), or with a new activity (a cold start, a rotation).
                         if (!lockOn) locked = false
                     }
-                    if (lockOn && locked) LockScreen(::unlock) else AppNav(nav)
+                    if (lockOn && locked) {
+                        LockScreen(::unlock)
+                    } else {
+                        AppNav(nav)
+                        DonatePrompt()
+                    }
                 }
             }
         }
